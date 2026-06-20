@@ -1,0 +1,135 @@
+name: "Run"
+
+"on":
+  workflow_dispatch:
+    inputs:
+      job:
+        required: true
+        type: choice
+        options:
+          - stale-retry
+          - daily-refresh
+          - full-discovery-refresh
+      source:
+        required: false
+        type: string
+      cron:
+        required: false
+        type: string
+      dispatched_at:
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      RUNNER_JOB: ${{ github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install root deps
+        run: npm install --omit=dev
+
+      - name: Request OIDC token
+        id: oidc
+        run: |
+          set -euo pipefail
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
+          if [ -z "${OIDC_TOKEN}" ]; then
+            echo "OIDC token request returned no token"
+            exit 1
+          fi
+          echo "::add-mask::${OIDC_TOKEN}"
+          echo "oidc_token=${OIDC_TOKEN}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fetch configuration
+        id: keys
+        run: |
+          set -euo pipefail
+          if [ -z "${KEY_BROKER_URL}" ]; then
+            echo "KEY_BROKER_URL repo variable is not set"
+            exit 1
+          fi
+
+          RESPONSE=$(curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "{\"job\": \"${{ github.event.inputs.job }}\"}")
+
+          OK=$(echo "${RESPONSE}" | jq -r '.ok // false')
+          if [ "${OK}" != "true" ]; then
+            echo "Key fetch failed"
+            echo "${RESPONSE}" | jq -r '.error // "unknown_error"'
+            exit 1
+          fi
+
+          echo "${RESPONSE}" | jq -r '.keys | to_entries[] | @base64' | while IFS= read -r row; do
+            key=$(echo "${row}" | base64 --decode | jq -r '.key')
+            value=$(echo "${row}" | base64 --decode | jq -r '.value')
+            delimiter="RUNNER_KEY_${key}_$(date +%s%N)"
+            echo "::add-mask::${value}"
+            {
+              echo "${key}<<${delimiter}"
+              printf '%s\n' "${value}"
+              echo "${delimiter}"
+            } >> "${GITHUB_ENV}"
+          done
+
+          echo "ok=${OK}" >> "${GITHUB_OUTPUT}"
+          echo "job=$(echo "${RESPONSE}" | jq -r '.job // ""')" >> "${GITHUB_OUTPUT}"
+          echo "key_count=$(echo "${RESPONSE}" | jq -r '.keys | length')" >> "${GITHUB_OUTPUT}"
+
+      - name: Fetch runner bundle
+        run: |
+          set -euo pipefail
+          mkdir -p .runner-bundle
+          curl -sS -f -L "${KEY_BROKER_URL%/}/v1/internal/runner/bundle" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Accept: application/gzip" \
+            -o /tmp/runner-bundle.tgz
+          tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
+
+      - name: Install bundle deps
+        run: |
+          set -euo pipefail
+          if [ -f .runner-bundle/package-lock.json ]; then
+            npm ci --omit=dev --prefix .runner-bundle
+          elif [ -f .runner-bundle/package.json ]; then
+            npm install --omit=dev --prefix .runner-bundle
+          fi
+          if node -e "const p=require('./.runner-bundle/package.json'); process.exit(p.scripts && p.scripts.setup ? 0 : 1)" 2>/dev/null; then
+            npm run setup --prefix .runner-bundle
+          fi
+          if [ -f .runner-bundle/requirements.txt ]; then
+            pip install -r .runner-bundle/requirements.txt
+          fi
+
+      - name: Run job
+        run: node scripts/run.mjs
+
+      - name: Notify status
+        if: always()
+        run: echo "Job completed: ${{ job.status }}"
