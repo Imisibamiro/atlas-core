@@ -101,22 +101,20 @@ jobs:
             exit 1
           fi
 
+          KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
+          umask 077
+          echo "${RESPONSE}" | jq -c '.keys // {}' > "${KEY_FILE}"
+
           echo "${RESPONSE}" | jq -r '.keys | to_entries[] | @base64' | while IFS= read -r row; do
-            key=$(echo "${row}" | base64 --decode | jq -r '.key')
             value=$(echo "${row}" | base64 --decode | jq -r '.value')
-            delimiter="RUNNER_KEY_${key}_$(date +%s%N)"
             while IFS= read -r secret_line; do
               if [ -n "${secret_line}" ]; then
                 echo "::add-mask::${secret_line}"
               fi
             done <<< "${value}"
-            {
-              echo "${key}<<${delimiter}"
-              printf '%s\n' "${value}"
-              echo "${delimiter}"
-            } >> "${GITHUB_ENV}"
           done
 
+          echo "RUNNER_KEY_FILE=${KEY_FILE}" >> "${GITHUB_ENV}"
           echo "ok=${OK}" >> "${GITHUB_OUTPUT}"
           echo "job=$(echo "${RESPONSE}" | jq -r '.job // ""')" >> "${GITHUB_OUTPUT}"
           echo "key_count=$(echo "${RESPONSE}" | jq -r '.keys | length')" >> "${GITHUB_OUTPUT}"
