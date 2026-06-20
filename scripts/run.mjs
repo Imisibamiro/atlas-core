@@ -7,6 +7,10 @@ import path from "node:path";
 const job = String(process.env.RUNNER_JOB || "").trim();
 const bundleDir = path.resolve(process.env.RUNNER_BUNDLE_DIR || ".runner-bundle");
 const brokeredEnv = loadBrokeredEnv();
+const runnerDefaults = {
+  DEEZER_READONLY_REFRESH_CONCURRENCY: "2",
+  DEEZER_API_MIN_INTERVAL_MS: "300",
+};
 
 console.log(JSON.stringify({
   stage: "bootstrap",
@@ -41,7 +45,7 @@ for (const [command, args] of candidates) {
 
   const result = spawnSync(command, args, {
     cwd: bundleDir,
-    env: { ...process.env, ...brokeredEnv, RUNNER_JOB: job },
+    env: { ...runnerDefaults, ...process.env, ...brokeredEnv, RUNNER_JOB: job },
     stdio: "inherit",
     timeout: 3 * 60 * 60 * 1000,
   });
