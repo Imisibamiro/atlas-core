@@ -177,6 +177,14 @@ jobs:
             exit 0
           fi
 
+          REPORT_OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
+          if [ -z "${REPORT_OIDC_TOKEN}" ]; then
+            echo "Report OIDC token request returned no token"
+            exit 1
+          fi
+          echo "::add-mask::${REPORT_OIDC_TOKEN}"
+
           SUMMARY_JSON="{}"
           if [ -n "${RUNNER_SUMMARY_FILE:-}" ] && [ -f "${RUNNER_SUMMARY_FILE}" ]; then
             SUMMARY_JSON=$(jq -c . "${RUNNER_SUMMARY_FILE}" 2>/dev/null || echo "{}")
@@ -215,7 +223,7 @@ jobs:
             }')
 
           curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
-            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Authorization: Bearer ${REPORT_OIDC_TOKEN}" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
             -d "${REPORT_BODY}" >/dev/null
