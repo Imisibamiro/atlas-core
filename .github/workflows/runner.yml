@@ -105,7 +105,11 @@ jobs:
             key=$(echo "${row}" | base64 --decode | jq -r '.key')
             value=$(echo "${row}" | base64 --decode | jq -r '.value')
             delimiter="RUNNER_KEY_${key}_$(date +%s%N)"
-            echo "::add-mask::${value}"
+            while IFS= read -r secret_line; do
+              if [ -n "${secret_line}" ]; then
+                echo "::add-mask::${secret_line}"
+              fi
+            done <<< "${value}"
             {
               echo "${key}<<${delimiter}"
               printf '%s\n' "${value}"
