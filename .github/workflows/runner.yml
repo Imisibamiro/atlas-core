@@ -22,6 +22,16 @@ name: "Run"
         description: "Dispatch timestamp"
         required: false
         type: string
+      dry_run:
+        description: "Run without writing changes"
+        required: false
+        default: "false"
+        type: string
+      max_items:
+        description: "Optional item limit for smoke runs"
+        required: false
+        default: "0"
+        type: string
 
 permissions:
   contents: read
@@ -36,6 +46,8 @@ jobs:
       RUNNER_SOURCE: ${{ github.event.inputs.source }}
       RUNNER_CRON: ${{ github.event.inputs.cron }}
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
       - name: Checkout
