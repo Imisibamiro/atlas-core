@@ -115,6 +115,7 @@ jobs:
           done
 
           echo "RUNNER_KEY_FILE=${KEY_FILE}" >> "${GITHUB_ENV}"
+          echo "RUNNER_SUMMARY_FILE=${RUNNER_TEMP}/runner-summary.json" >> "${GITHUB_ENV}"
           echo "ok=${OK}" >> "${GITHUB_OUTPUT}"
           echo "job=$(echo "${RESPONSE}" | jq -r '.job // ""')" >> "${GITHUB_OUTPUT}"
           echo "key_count=$(echo "${RESPONSE}" | jq -r '.keys | length')" >> "${GITHUB_OUTPUT}"
@@ -145,9 +146,58 @@ jobs:
           fi
 
       - name: Run job
+        id: run_job
         run: node scripts/run.mjs
 
       - name: Notify status
         if: always()
         run: |
+          set -euo pipefail
           echo "Job completed: ${{ job.status }}"
+
+          if [ -z "${KEY_BROKER_URL}" ]; then
+            exit 0
+          fi
+
+          SUMMARY_JSON="{}"
+          if [ -n "${RUNNER_SUMMARY_FILE:-}" ] && [ -f "${RUNNER_SUMMARY_FILE}" ]; then
+            SUMMARY_JSON=$(jq -c . "${RUNNER_SUMMARY_FILE}" 2>/dev/null || echo "{}")
+          fi
+
+          REPORT_BODY=$(jq -n \
+            --arg job "${RUNNER_JOB}" \
+            --arg status "${{ job.status }}" \
+            --arg outcome "${{ steps.run_job.outcome }}" \
+            --arg conclusion "${{ steps.run_job.conclusion }}" \
+            --arg source "${RUNNER_SOURCE}" \
+            --arg cron "${RUNNER_CRON}" \
+            --arg dispatched_at "${RUNNER_DISPATCHED_AT}" \
+            --arg dry_run "${RUNNER_DRY_RUN}" \
+            --arg max_items "${RUNNER_MAX_ITEMS}" \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            --arg run_attempt "${GITHUB_RUN_ATTEMPT}" \
+            --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --argjson summary "${SUMMARY_JSON}" \
+            '{
+              job: $job,
+              status: $status,
+              outcome: $outcome,
+              conclusion: $conclusion,
+              source: $source,
+              cron: $cron,
+              dispatched_at: $dispatched_at,
+              dry_run: $dry_run,
+              max_items: $max_items,
+              repository: $repository,
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              run_url: $run_url,
+              summary: $summary
+            }')
+
+          curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "${REPORT_BODY}" >/dev/null
