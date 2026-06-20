@@ -130,6 +130,16 @@ jobs:
             -o /tmp/runner-bundle.tgz
           tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
 
+      - name: Cache bundle dependency downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/pip
+          key: deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json', 'package.json', '.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/pipelines/sp/package-lock.json', '.runner-bundle/pipelines/sp/package.json', '.runner-bundle/**/requirements.txt') }}
+          restore-keys: |
+            deps-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
