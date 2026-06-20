@@ -4,19 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       job:
+        description: "Runner job"
         required: true
-        type: choice
-        options:
-          - stale-retry
-          - daily-refresh
-          - full-discovery-refresh
+        default: "stale-retry"
+        type: string
       source:
+        description: "Dispatch source"
         required: false
+        default: "manual"
         type: string
       cron:
+        description: "Cron expression or manual marker"
         required: false
+        default: "manual"
         type: string
       dispatched_at:
+        description: "Dispatch timestamp"
         required: false
         type: string
 
