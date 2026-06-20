@@ -130,6 +130,14 @@ jobs:
             -o /tmp/runner-bundle.tgz
           tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/pipelines/sp/package-lock.json', '.runner-bundle/pipelines/sp/package.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Install bundle deps
         run: |
           set -euo pipefail
