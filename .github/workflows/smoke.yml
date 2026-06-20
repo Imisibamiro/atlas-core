@@ -1,6 +1,6 @@
 name: "Run"
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       job:
@@ -135,4 +135,5 @@ jobs:
 
       - name: Notify status
         if: always()
-        run: echo "Job completed: ${{ job.status }}"
+        run: |
+          echo "Job completed: ${{ job.status }}"
