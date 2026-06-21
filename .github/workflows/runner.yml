@@ -37,6 +37,10 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: ngmc-runner-${{ github.event.inputs.job || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   run:
     if: ${{ github.event.inputs.job != 'daily-refresh-fanout' }}
