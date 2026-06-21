@@ -30,22 +30,19 @@ if (!existsSync(bundleDir)) {
 }
 
 const candidates = [
-  ["npm", ["run", "runner", "--", "--job", job]],
-  ["npm", ["run", "start", "--", "--job", job]],
-  ["node", ["run.mjs", "--job", job]],
-  ["node", ["index.mjs", "--job", job]],
+  ["node", ["scripts/run-cloud-job.mjs", job]],
+  ["node", ["run.mjs", job]],
+  ["node", ["index.mjs", job]],
 ];
 
 for (const [command, args] of candidates) {
-  const scriptPath = args[0] === "run.mjs" || args[0] === "index.mjs"
-    ? path.join(bundleDir, args[0])
-    : path.join(bundleDir, "package.json");
+  const scriptPath = path.join(bundleDir, args[0]);
 
   if (!existsSync(scriptPath)) continue;
 
   const result = spawnSync(command, args, {
     cwd: bundleDir,
-    env: { ...runnerDefaults, ...process.env, ...brokeredEnv, RUNNER_JOB: job },
+    env: { ...runnerDefaults, ...process.env, ...brokeredEnv, RUNNER_JOB: job, NGMC_JOB_KIND: job },
     stdio: "inherit",
     timeout: 3 * 60 * 60 * 1000,
   });
