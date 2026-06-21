@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   run:
-    if: ${{ github.event.inputs.job != 'daily-refresh-fanout' }}
+    if: ${{ github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -234,14 +234,17 @@ jobs:
             -d "${REPORT_BODY}" >/dev/null
 
   prepare-fanout:
-    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' }}
+    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
       run_id: ${{ steps.start.outputs.run_id }}
       snapshot_at: ${{ steps.start.outputs.snapshot_at }}
     env:
-      RUNNER_JOB: daily-refresh-fanout-start
+      RUNNER_JOB: ${{ github.event.inputs.job }}-start
+      RUNNER_KEY_JOB: daily-refresh-fanout-start
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job }}
       RUNNER_SOURCE: ${{ github.event.inputs.source }}
       RUNNER_CRON: ${{ github.event.inputs.cron }}
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
@@ -277,7 +280,7 @@ jobs:
             -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d "{\"job\": \"${RUNNER_JOB}\"}")
+            -d "{\"job\": \"${RUNNER_KEY_JOB:-$RUNNER_JOB}\"}")
           test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
           KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
           umask 077
@@ -316,7 +319,7 @@ jobs:
 
   provider-fanout:
     needs: prepare-fanout
-    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' }}
+    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
@@ -325,6 +328,9 @@ jobs:
         part: [p1, p2, p3, p4, p5]
     env:
       RUNNER_JOB: refresh-part:${{ matrix.part }}
+      RUNNER_KEY_JOB: refresh-part:${{ matrix.part }}
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job }}
       RUNNER_SOURCE: ${{ github.event.inputs.source }}
       RUNNER_CRON: ${{ github.event.inputs.cron }}
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
@@ -367,7 +373,7 @@ jobs:
             -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d "{\"job\": \"${RUNNER_JOB}\"}")
+            -d "{\"job\": \"${RUNNER_KEY_JOB:-$RUNNER_JOB}\"}")
           test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
           KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
           umask 077
@@ -429,11 +435,14 @@ jobs:
 
   finalize-fanout:
     needs: [prepare-fanout, provider-fanout]
-    if: ${{ always() && github.event.inputs.job == 'daily-refresh-fanout' }}
+    if: ${{ always() && (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      RUNNER_JOB: daily-refresh-fanout-finalize
+      RUNNER_JOB: ${{ github.event.inputs.job }}-finalize
+      RUNNER_KEY_JOB: daily-refresh-fanout-finalize
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job }}
       RUNNER_SOURCE: ${{ github.event.inputs.source }}
       RUNNER_CRON: ${{ github.event.inputs.cron }}
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
@@ -471,7 +480,7 @@ jobs:
             -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d "{\"job\": \"${RUNNER_JOB}\"}")
+            -d "{\"job\": \"${RUNNER_KEY_JOB:-$RUNNER_JOB}\"}")
           test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
           KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
           umask 077
