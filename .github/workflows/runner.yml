@@ -32,6 +32,21 @@ name: "Run"
         required: false
         default: "0"
         type: string
+      job_run_id:
+        description: "Optional Cloudflare/admin job id to report back against"
+        required: false
+        default: ""
+        type: string
+      batch_size:
+        description: "Optional classifier batch size"
+        required: false
+        default: "50"
+        type: string
+      include_legacy:
+        description: "Whether classifier should include legacy unclassified rows"
+        required: false
+        default: "false"
+        type: string
 
 permissions:
   contents: read
@@ -53,6 +68,10 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      NGMC_JOB_RUN_ID: ${{ github.event.inputs.job_run_id }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.job_run_id }}
+      CLASSIFIER_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
+      CLASSIFIER_INCLUDE_LEGACY: ${{ github.event.inputs.include_legacy }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
       - name: Checkout
@@ -145,6 +164,20 @@ jobs:
           restore-keys: |
             deps-${{ runner.os }}-${{ runner.arch }}-
 
+      - name: Cache classifier models and audio previews
+        if: ${{ github.event.inputs.job == 'classifier-classify' || github.event.inputs.job == 'classifier-retrain' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            .runner-bundle/.cache/ngmc-classifier
+            .runner-bundle/.cache/huggingface
+            .runner-bundle/.cache/torch
+            ~/.cache/huggingface
+            ~/.cache/torch
+          key: classifier-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/scripts/classifier/requirements-classifier.txt', '.runner-bundle/models/ngmc_production_model.joblib') }}
+          restore-keys: |
+            classifier-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -166,6 +199,9 @@ jobs:
           fi
           if [ -f .runner-bundle/requirements.txt ]; then
             pip install -r .runner-bundle/requirements.txt
+          fi
+          if [[ "${RUNNER_JOB}" == classifier-* ]] && [ -f .runner-bundle/scripts/classifier/requirements-classifier.txt ]; then
+            pip install -r .runner-bundle/scripts/classifier/requirements-classifier.txt
           fi
 
       - name: Run job
