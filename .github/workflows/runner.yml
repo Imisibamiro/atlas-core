@@ -37,6 +37,16 @@ name: "Run"
         required: false
         default: ""
         type: string
+      classifier_job_id:
+        description: "Optional classifier job id that fanout finalization must wait for"
+        required: false
+        default: ""
+        type: string
+      classifier_timeout_seconds:
+        description: "Classifier watchdog alert threshold in seconds"
+        required: false
+        default: "3600"
+        type: string
       batch_size:
         description: "Optional classifier batch size"
         required: false
@@ -286,6 +296,8 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
       - name: Checkout
@@ -372,6 +384,8 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       NGMC_REFRESH_RUN_ID: ${{ needs.prepare-fanout.outputs.run_id }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
@@ -484,6 +498,8 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       NGMC_REFRESH_RUN_ID: ${{ needs.prepare-fanout.outputs.run_id }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
