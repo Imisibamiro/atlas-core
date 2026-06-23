@@ -315,6 +315,8 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
+      NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
@@ -405,8 +407,8 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
-      NGMC_REFRESH_RUN_ID: ${{ needs.prepare-fanout.outputs.run_id }}
-      NGMC_REFRESH_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
+      NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
       - name: Checkout
@@ -519,8 +521,8 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
-      NGMC_REFRESH_RUN_ID: ${{ needs.prepare-fanout.outputs.run_id }}
-      NGMC_REFRESH_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
+      NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
       - name: Checkout
