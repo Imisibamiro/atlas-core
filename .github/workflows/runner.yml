@@ -181,14 +181,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            .runner-bundle/.venv
             .runner-bundle/.cache/ngmc-classifier
             .runner-bundle/.cache/huggingface
             .runner-bundle/.cache/torch
             ~/.cache/huggingface
             ~/.cache/torch
-          key: classifier-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/scripts/classifier/requirements-classifier.txt', '.runner-bundle/models/ngmc_production_model.joblib') }}
+          key: classifier-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.runner-bundle/scripts/classifier/requirements-classifier.txt', '.runner-bundle/models/ngmc_production_model.joblib') }}
           restore-keys: |
-            classifier-${{ runner.os }}-${{ runner.arch }}-
+            classifier-${{ runner.os }}-${{ runner.arch }}-py312-
+
+      - name: Install classifier audio backend
+        if: ${{ github.event.inputs.job == 'classifier-classify' || github.event.inputs.job == 'classifier-retrain' }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -213,7 +221,16 @@ jobs:
             pip install -r .runner-bundle/requirements.txt
           fi
           if [[ "${RUNNER_JOB}" == classifier-* ]] && [ -f .runner-bundle/scripts/classifier/requirements-classifier.txt ]; then
-            pip install -r .runner-bundle/scripts/classifier/requirements-classifier.txt
+            python -m venv .runner-bundle/.venv
+            . .runner-bundle/.venv/bin/activate
+            if python -c 'import importlib; [importlib.import_module(name) for name in ("torch", "transformers", "librosa", "soundfile", "sklearn", "joblib", "requests")]'
+            then
+              echo "Classifier Python dependencies restored from cache"
+            else
+              python -m pip install --upgrade pip
+              pip install -r .runner-bundle/scripts/classifier/requirements-classifier.txt
+            fi
+            echo "CLASSIFIER_PYTHON=${GITHUB_WORKSPACE}/.runner-bundle/.venv/bin/python" >> "${GITHUB_ENV}"
           fi
 
       - name: Run job
