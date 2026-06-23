@@ -112,6 +112,8 @@ jobs:
           fi
           echo "::add-mask::${OIDC_TOKEN}"
           echo "oidc_token=${OIDC_TOKEN}" >> "${GITHUB_OUTPUT}"
+          echo "CHART_API_OIDC_TOKEN=${OIDC_TOKEN}" >> "${GITHUB_ENV}"
+          echo "CLASSIFIER_API_TOKEN=${OIDC_TOKEN}" >> "${GITHUB_ENV}"
 
       - name: Fetch configuration
         id: keys
