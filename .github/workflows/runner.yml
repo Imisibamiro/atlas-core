@@ -715,3 +715,71 @@ jobs:
             curl -sS -H "Content-Type: application/json" -X POST "${DISCORD_WEBHOOK}" -d "${REPORT_BODY}" >/dev/null \
               || echo "Discord webhook failed (non-fatal)"
           fi
+
+  notify-atlas-result:
+    needs: [prepare-fanout, provider-fanout, finalize-fanout]
+    if: ${{ always() && (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send Atlas workflow result
+        env:
+          DISCORD_WEBHOOK: ${{ vars.DISCORD_WEBHOOK_URL || '' }}
+          JOB_KIND: ${{ github.event.inputs.job }}
+          SOURCE: ${{ github.event.inputs.source }}
+          CRON: ${{ github.event.inputs.cron }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          MAX_ITEMS: ${{ github.event.inputs.max_items }}
+          PREPARE_RESULT: ${{ needs.prepare-fanout.result }}
+          PROVIDER_RESULT: ${{ needs.provider-fanout.result }}
+          FINALIZE_RESULT: ${{ needs.finalize-fanout.result }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK}" ]; then
+            echo "No Discord webhook configured — skipping notification"
+            exit 0
+          fi
+
+          if [ "${PREPARE_RESULT}" = "success" ] && [ "${PROVIDER_RESULT}" = "success" ] && [ "${FINALIZE_RESULT}" = "success" ]; then
+            STATUS="completed"
+            COLOR=0x22c55e
+          else
+            STATUS="failed"
+            COLOR=0xef4444
+          fi
+
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          REPORT_BODY=$(jq -n \
+            --arg title "NGMC Atlas workflow ${STATUS}" \
+            --arg job "${JOB_KIND}" \
+            --arg run_id "${JOB_KIND}:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" \
+            --arg source "${SOURCE}" \
+            --arg cron "${CRON}" \
+            --arg dry_run "${DRY_RUN}" \
+            --arg max_items "${MAX_ITEMS}" \
+            --arg prepare "${PREPARE_RESULT}" \
+            --arg provider "${PROVIDER_RESULT}" \
+            --arg finalize "${FINALIZE_RESULT}" \
+            --arg url "${RUN_URL}" \
+            --argjson color "${COLOR}" \
+            '{
+              embeds: [{
+                title: $title,
+                color: $color,
+                timestamp: now | todateiso8601,
+                fields: [
+                  {name: "Job", value: $job, inline: true},
+                  {name: "Run ID", value: $run_id, inline: false},
+                  {name: "Source", value: $source, inline: true},
+                  {name: "Cron", value: $cron, inline: true},
+                  {name: "Dry run", value: $dry_run, inline: true},
+                  {name: "Max items", value: $max_items, inline: true},
+                  {name: "Prepare", value: $prepare, inline: true},
+                  {name: "Provider fanout", value: $provider, inline: true},
+                  {name: "Finalize", value: $finalize, inline: true},
+                  {name: "GitHub run", value: $url, inline: false}
+                ]
+              }]
+            }')
+          curl -sS -H "Content-Type: application/json" -X POST "${DISCORD_WEBHOOK}" -d "${REPORT_BODY}" >/dev/null \
+            || echo "Discord webhook failed (non-fatal)"
