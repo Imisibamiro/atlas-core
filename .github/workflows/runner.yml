@@ -198,6 +198,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
 
+      - name: Prepare Playwright browser cache path
+        run: mkdir -p ~/.cache/ms-playwright
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -477,6 +480,9 @@ jobs:
           key: fanout-deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/**/requirements.txt') }}
           restore-keys: |
             fanout-deps-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Prepare Playwright browser cache path
+        run: mkdir -p ~/.cache/ms-playwright
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
