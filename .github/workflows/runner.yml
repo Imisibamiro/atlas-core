@@ -678,6 +678,64 @@ jobs:
 
           echo "::notice title=NGMC refresh report::${SUMMARY}; recalc_exit=${RECALC_EXIT}; max_items=${RUNNER_MAX_ITEMS:-0}"
 
+          if [ -n "${KEY_BROKER_URL:-}" ]; then
+            REPORT_OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
+            if [ -z "${REPORT_OIDC_TOKEN}" ]; then
+              echo "Report OIDC token request returned no token"
+              exit 1
+            fi
+            echo "::add-mask::${REPORT_OIDC_TOKEN}"
+
+            if [ "${RECALC_EXIT}" -eq 0 ]; then
+              RECALC_STATUS="success"
+            else
+              RECALC_STATUS="failure"
+            fi
+
+            REPORT_BODY=$(jq -n \
+              --arg job "recalculate-live-chart" \
+              --arg status "${RECALC_STATUS}" \
+              --arg source "${RUNNER_SOURCE}" \
+              --arg cron "${RUNNER_CRON}" \
+              --arg dispatched_at "${RUNNER_DISPATCHED_AT}" \
+              --arg dry_run "${RUNNER_DRY_RUN}" \
+              --arg max_items "${RUNNER_MAX_ITEMS}" \
+              --arg job_run_id "${NGMC_REFRESH_RUN_ID}" \
+              --arg repository "${GITHUB_REPOSITORY}" \
+              --arg run_id "${GITHUB_RUN_ID}" \
+              --arg run_attempt "${GITHUB_RUN_ATTEMPT}" \
+              --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+              --arg recalc_exit "${RECALC_EXIT}" \
+              --arg summary_text "${SUMMARY}" \
+              '{
+                job: $job,
+                status: $status,
+                source: $source,
+                cron: $cron,
+                dispatched_at: $dispatched_at,
+                dry_run: $dry_run,
+                max_items: $max_items,
+                job_run_id: $job_run_id,
+                repository: $repository,
+                run_id: $run_id,
+                run_attempt: $run_attempt,
+                run_url: $run_url,
+                recalc_exit: $recalc_exit,
+                summary: {
+                  jobRunId: $job_run_id,
+                  recalcExit: $recalc_exit,
+                  text: $summary_text
+                }
+              }')
+
+            curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
+              -H "Authorization: Bearer ${REPORT_OIDC_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/json" \
+              -d "${REPORT_BODY}" >/dev/null
+          fi
+
           if [ -n "${DISCORD_WEBHOOK}" ]; then
             if [ "${RECALC_EXIT}" -eq 0 ]; then
               COLOR=0x22c55e
