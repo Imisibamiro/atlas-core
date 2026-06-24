@@ -1,8 +1,8 @@
-name: Gospel Alerts
+name: GA
 
 on:
   schedule:
-    # 3am UK time = 2am UTC (BST) / 3am UTC (GMT).
+    # 3am UK = 2am UTC (BST) / 3am UTC (GMT).
     # GitHub cron is UTC, so 2am UTC covers 3am BST most of the year.
     - cron: '0 2 * * *'
   workflow_dispatch:  # manual trigger for testing
@@ -19,10 +19,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Gospel Alerts scraper
+      - name: Run GA
         id: scraper
         run: |
-          bash scripts/gospel-alerts.sh 2>&1 | tee /tmp/scraper-output.txt
+          bash scripts/ga.sh 2>&1 | tee /tmp/scraper-output.txt
 
       - name: Check for new items
         id: check
@@ -80,13 +80,13 @@ for t in type_order:
 fields = fields[:10]
 
 payload = {
-    'username': '🎵 Gospel Alerts',
+    'username': '🎵 GA',
     'embeds': [{
         'title': 'Daily Gospel Music Roundup',
         'color': 0x00AA66,
         'description': f'**{len(items)}** new items across gospel music blogs',
         'fields': fields,
-        'footer': {'text': 'NGMC Gospel Alerts'},
+        'footer': {'text': 'GA · NGMC'},
         'timestamp': '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
     }]
 }
@@ -112,14 +112,14 @@ print(f'Wrote payload with {len(items)} items')
             -H "Content-Type: application/json" \
             -d @"${PAYLOAD_FILE}" && echo "Discord notification sent" || echo "Discord post failed (check webhook URL)"
 
-      - name: Commit updated state
+      - name: Commit state
         run: |
-          git config user.name "gospel-alerts-bot"
-          git config user.email "gospel-alerts@ngmcharts.com"
+          git config user.name "ga-bot"
+          git config user.email "ga@ngmcharts.com"
           git add data/gospel-alerts-state.txt
           if git diff --cached --quiet; then
             echo "No state changes to commit"
           else
-            git commit -m "gospel-alerts: update seen state [skip ci]"
+            git commit -m "ga: update state [skip ci]"
             git push
           fi
