@@ -3,9 +3,8 @@ name: GA
 on:
   schedule:
     # 3am UK = 2am UTC (BST) / 3am UTC (GMT).
-    # GitHub cron is UTC, so 2am UTC covers 3am BST most of the year.
     - cron: '0 2 * * *'
-  workflow_dispatch:  # manual trigger for testing
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,110 +15,43 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Run GA
         id: scraper
-        run: |
-          bash scripts/ga.sh 2>&1 | tee /tmp/scraper-output.txt
+        run: bash scripts/ga.sh 2>&1 | tee /tmp/scraper-output.txt
 
-      - name: Check for new items
+      - name: Check new items
         id: check
         run: |
-          NEW_COUNT=$(wc -l < /tmp/gospel-new-items.json 2>/dev/null || echo 0)
-          echo "count=${NEW_COUNT}" >> "${GITHUB_OUTPUT}"
-          echo "Found ${NEW_COUNT} new items"
+          N=$(wc -l < /tmp/gospel-new-items.json 2>/dev/null || echo 0)
+          echo "count=${N}" >> "${GITHUB_OUTPUT}"
+          echo "Found ${N} new items"
 
-      - name: Build Discord payload
-        id: discord_payload
+      - name: Build report + Discord payload
         if: steps.check.outputs.count > 0
-        run: |
-          PAYLOAD_FILE=$(mktemp)
-          python3 -c "
-import json, sys
+        env:
+          ITEMS_FILE: /tmp/gospel-new-items.json
+          STATE_FILE: data/gospel-alerts-state.txt
+          REPORT_FILE: data/ga-latest.md
+          NOW_ISO: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+        run: python3 scripts/ga-report.py
 
-items = []
-with open('/tmp/gospel-new-items.json') as f:
-    for line in f:
-        line = line.strip()
-        if line:
-            items.append(json.loads(line))
-
-# Group by type
-groups = {}
-for item in items:
-    t = item['type']
-    if t not in groups:
-        groups[t] = []
-    groups[t].append(item)
-
-# Build embed fields
-fields = []
-type_order = ['🎵 New Music', '💿 Album/EP', '🎵 Mixtape', '🎬 Video', '📰 News', '📖 Devotional', '📢 News']
-for t in type_order:
-    if t not in groups:
-        continue
-    value_lines = []
-    for item in groups[t][:10]:  # max 10 per type
-        title = item['title']
-        link = item['link']
-        if link:
-            value_lines.append(f'[{title}]({link})')
-        else:
-            value_lines.append(title)
-    if len(groups[t]) > 10:
-        value_lines.append(f'*...and {len(groups[t]) - 10} more*')
-    fields.append({
-        'name': f'{t} ({len(groups[t])})',
-        'value': '\n'.join(value_lines),
-        'inline': False
-    })
-
-# Limit to 10 fields (Discord max)
-fields = fields[:10]
-
-payload = {
-    'username': '🎵 GA',
-    'embeds': [{
-        'title': 'Daily Gospel Music Roundup',
-        'color': 0x00AA66,
-        'description': f'**{len(items)}** new items across gospel music blogs',
-        'fields': fields,
-        'footer': {'text': 'GA · NGMC'},
-        'timestamp': '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
-    }]
-}
-
-with open('$PAYLOAD_FILE', 'w') as f:
-    json.dump(payload, f)
-print(f'Wrote payload with {len(items)} items')
-" 2>&1
-          echo "payload_file=${PAYLOAD_FILE}" >> "${GITHUB_OUTPUT}"
-
-      - name: Send to Discord
+      - name: Send Discord
         if: steps.check.outputs.count > 0
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          PAYLOAD_FILE="${{ steps.discord_payload.outputs.payload_file }}"
-          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
-            echo "⚠ DISCORD_WEBHOOK_URL secret not set — skipping Discord notification"
-            echo "To set it up: https://github.com/Imisibamiro/atlas-core/settings/secrets/actions"
-            exit 0
-          fi
+          [ -z "${DISCORD_WEBHOOK_URL}" ] && { echo "No webhook secret"; exit 0; }
           curl -sS -f -X POST "${DISCORD_WEBHOOK_URL}" \
             -H "Content-Type: application/json" \
-            -d @"${PAYLOAD_FILE}" && echo "Discord notification sent" || echo "Discord post failed (check webhook URL)"
+            -d @/tmp/discord-payload.json && echo "Sent OK"
 
-      - name: Commit state
+      - name: Commit state + report
         run: |
           git config user.name "ga-bot"
           git config user.email "ga@ngmcharts.com"
-          git add data/gospel-alerts-state.txt
-          if git diff --cached --quiet; then
-            echo "No state changes to commit"
-          else
-            git commit -m "ga: update state [skip ci]"
-            git push
-          fi
+          git add data/
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "ga: update [skip ci]"
+          git push
