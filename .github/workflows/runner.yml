@@ -514,7 +514,7 @@ jobs:
     needs: [prepare-fanout, provider-fanout]
     if: ${{ always() && (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 360
     env:
       RUNNER_JOB: ${{ github.event.inputs.job }}-finalize
       RUNNER_KEY_JOB: daily-refresh-fanout-finalize
@@ -600,7 +600,7 @@ jobs:
         env:
           CLOUDFLARE_CHART_API_URL: ""
           CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
-          CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "600000"
+          CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "3600000"
         run: |
           set -euo pipefail
           # Export chart API credentials from runner keys
