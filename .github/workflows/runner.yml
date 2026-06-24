@@ -650,32 +650,29 @@ jobs:
             echo "::warning::Recalculation exited with code ${RECALC_EXIT} — Cloudflare finalizer will attempt it as fallback"
           fi
 
-      - name: Discord recalculation summary
+      - name: Write refresh report
         if: always() && steps.recalc.outcome != 'skipped'
         env:
-          DISCORD_WEBHOOK: ${{ vars.DISCORD_WEBHOOK_URL || '' }}
           RECALC_EXIT: ${{ steps.recalc.outputs.recalc_exit || '1' }}
         run: |
           set -euo pipefail
-          DISCORD_URL="${DISCORD_WEBHOOK}"
-          if [ -z "${DISCORD_URL}" ]; then
-            echo "No Discord webhook configured — skipping notification"
-            exit 0
-          fi
-          RECALC_EXIT="${RECALC_EXIT:-1}"
-          if [ "${RECALC_EXIT}" -eq 0 ]; then
-            COLOR=0x22c55e
-            STATUS="completed"
-          else
-            COLOR=0xef4444
-            STATUS="failed (exit ${RECALC_EXIT})"
-          fi
-          LAST_LINE=$(grep -c '' /tmp/recalc-output.jsonl 2>/dev/null || echo 0)
+          SUMMARY="No recalculation output captured"
           if [ -f /tmp/recalc-output.jsonl ]; then
-            SUMMARY=$(tail -1 /tmp/recalc-output.jsonl | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"Tracks: {d.get('processedTrackCount','?')}, Approved: {d.get('approvedTrackCount','?')}, Elapsed: {d.get('elapsedSec','?')}s\")" 2>/dev/null || echo "N/A")
-          else
-            SUMMARY="No output captured"
+            SUMMARY=$(tail -1 /tmp/recalc-output.jsonl | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"Tracks: {d.get('processedTrackCount','?')}, Approved: {d.get('approvedTrackCount','?')}, Demoted: {d.get('demotedTrackCount','?')}, Chart-rule excluded: {d.get('chartRuleExcludedCount','?')}, Elapsed: {d.get('elapsedSec','?')}s\")" 2>/dev/null || echo "Recalculation output was not valid JSON")
           fi
-          curl -s -H "Content-Type: application/json" -X POST "${DISCORD_URL}" \
-            -d "{\"embeds\":[{\"title\":\"NGMC Recalculation ${STATUS}\",\"color\":${COLOR},\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"fields\":[{\"name\":\"Summary\",\"value\":\"${SUMMARY}\",\"inline\":false},{\"name\":\"Chart Week\",\"value\":\"$(date +%Y-%m-%d)\",\"inline\":true},{\"name\":\"Runner\",\"value\":\"Atlas Core (run #${GITHUB_RUN_NUMBER})\",\"inline\":true}]}]}" \
-            || echo "Discord webhook failed (non-fatal)"
+
+          {
+            echo "## NGMC Refresh Report"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Job | ${RUNNER_PARENT_JOB:-${RUNNER_JOB:-unknown}} |"
+            echo "| Run ID | ${NGMC_REFRESH_RUN_ID:-${GITHUB_RUN_ID:-unknown}} |"
+            echo "| Max items | ${RUNNER_MAX_ITEMS:-0} |"
+            echo "| Dry run | ${RUNNER_DRY_RUN:-false} |"
+            echo "| Recalculation exit | ${RECALC_EXIT} |"
+            echo "| Summary | ${SUMMARY} |"
+            echo "| Run URL | ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          echo "::notice title=NGMC refresh report::${SUMMARY}; recalc_exit=${RECALC_EXIT}; max_items=${RUNNER_MAX_ITEMS:-0}"
