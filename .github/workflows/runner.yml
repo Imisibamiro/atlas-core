@@ -601,6 +601,7 @@ jobs:
           CLOUDFLARE_CHART_API_URL: ""
           CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
           CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "3600000"
+          CLOUDFLARE_RECALC_UPDATE_CONCURRENCY: "12"
         run: |
           set -euo pipefail
           # Export chart API credentials from runner keys
@@ -660,7 +661,7 @@ jobs:
           set -euo pipefail
           SUMMARY="No recalculation output captured"
           if [ -f /tmp/recalc-output.jsonl ]; then
-            SUMMARY=$(tail -1 /tmp/recalc-output.jsonl | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"Tracks: {d.get('processedTrackCount','?')}, Approved: {d.get('approvedTrackCount','?')}, Demoted: {d.get('demotedTrackCount','?')}, Chart-rule excluded: {d.get('chartRuleExcludedCount','?')}, Elapsed: {d.get('elapsedSec','?')}s\")" 2>/dev/null || echo "Recalculation output was not valid JSON")
+            SUMMARY=$(tail -1 /tmp/recalc-output.jsonl | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"Tracks: {d.get('processedTrackCount','?')}, Approved: {d.get('approvedTrackCount','?')}, Demoted: {d.get('demotedTrackCount','?')}, Chart-rule excluded: {d.get('chartRuleExcludedCount','?')}, Concurrency: {d.get('trackUpdateConcurrency','?')}, Elapsed: {d.get('elapsedSec','?')}s\")" 2>/dev/null || echo "Recalculation output was not valid JSON")
           fi
 
           {
