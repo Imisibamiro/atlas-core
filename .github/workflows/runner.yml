@@ -654,6 +654,7 @@ jobs:
         if: always() && steps.recalc.outcome != 'skipped'
         env:
           RECALC_EXIT: ${{ steps.recalc.outputs.recalc_exit || '1' }}
+          DISCORD_WEBHOOK: ${{ vars.DISCORD_WEBHOOK_URL || '' }}
         run: |
           set -euo pipefail
           SUMMARY="No recalculation output captured"
@@ -676,3 +677,41 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
           echo "::notice title=NGMC refresh report::${SUMMARY}; recalc_exit=${RECALC_EXIT}; max_items=${RUNNER_MAX_ITEMS:-0}"
+
+          if [ -n "${DISCORD_WEBHOOK}" ]; then
+            if [ "${RECALC_EXIT}" -eq 0 ]; then
+              COLOR=0x22c55e
+              STATUS="completed"
+            else
+              COLOR=0xef4444
+              STATUS="completed with recalc warning"
+            fi
+            REPORT_BODY=$(jq -n \
+              --arg title "NGMC Atlas refresh ${STATUS}" \
+              --arg job "${RUNNER_PARENT_JOB:-${RUNNER_JOB:-unknown}}" \
+              --arg run_id "${NGMC_REFRESH_RUN_ID:-${GITHUB_RUN_ID:-unknown}}" \
+              --arg max_items "${RUNNER_MAX_ITEMS:-0}" \
+              --arg dry_run "${RUNNER_DRY_RUN:-false}" \
+              --arg recalc_exit "${RECALC_EXIT}" \
+              --arg summary "${SUMMARY}" \
+              --arg url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+              --argjson color "${COLOR}" \
+              '{
+                embeds: [{
+                  title: $title,
+                  color: $color,
+                  timestamp: now | todateiso8601,
+                  fields: [
+                    {name: "Job", value: $job, inline: true},
+                    {name: "Run ID", value: $run_id, inline: false},
+                    {name: "Max items", value: $max_items, inline: true},
+                    {name: "Dry run", value: $dry_run, inline: true},
+                    {name: "Recalculation exit", value: $recalc_exit, inline: true},
+                    {name: "Refresh summary", value: $summary, inline: false},
+                    {name: "GitHub run", value: $url, inline: false}
+                  ]
+                }]
+              }')
+            curl -sS -H "Content-Type: application/json" -X POST "${DISCORD_WEBHOOK}" -d "${REPORT_BODY}" >/dev/null \
+              || echo "Discord webhook failed (non-fatal)"
+          fi
