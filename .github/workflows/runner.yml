@@ -591,8 +591,24 @@ jobs:
 
       - name: Recalculate live chart
         id: recalc
+        env:
+          CLOUDFLARE_CHART_API_URL: ""
+          CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
         run: |
           set -euo pipefail
+          # Export chart API credentials from runner keys
+          if [ -f "${RUNNER_KEY_FILE}" ]; then
+            CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+            CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // ""' "${RUNNER_KEY_FILE}")
+            if [ -n "${CHART_URL}" ]; then
+              export CLOUDFLARE_CHART_API_URL="${CHART_URL}"
+              echo "CLOUDFLARE_CHART_API_URL=${CHART_URL}" >> "${GITHUB_ENV}"
+            fi
+            if [ -n "${CHART_TOKEN}" ]; then
+              export CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CHART_TOKEN}"
+              echo "::add-mask::${CHART_TOKEN}"
+            fi
+          fi
           RECALC_EXIT=0
           npx tsx .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
           echo "recalc_exit=${RECALC_EXIT}" >> "${GITHUB_OUTPUT}"
