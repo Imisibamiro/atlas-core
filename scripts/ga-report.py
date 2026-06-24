@@ -63,10 +63,11 @@ print(f"Report written: {REPORT_FILE} ({len(md)} bytes)")
 # ============================================================
 # 2. Build Discord embed (compact + link to full report)
 # ============================================================
-GITHUB_SERVER = os.environ.get('GITHUB_SERVER_URL', 'https://github.com')
+# Always link to main — report gets committed during the run
+    GITHUB_SERVER = "https://github.com"
 GITHUB_REPO = os.environ.get('GITHUB_REPOSITORY', 'Imisibamiro/atlas-core')
 GITHUB_SHA = os.environ.get('GITHUB_SHA', 'main')
-report_link = f"{GITHUB_SERVER}/{GITHUB_REPO}/blob/{GITHUB_SHA}/{REPORT_FILE}"
+report_link = f"{GITHUB_SERVER}/{GITHUB_REPO}/blob/main/{REPORT_FILE}"
 
 fields = []
 MAX_PER_FIELD = 5  # show max 5 per type in the embed
