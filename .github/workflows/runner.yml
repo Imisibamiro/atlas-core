@@ -600,6 +600,7 @@ jobs:
         env:
           CLOUDFLARE_CHART_API_URL: ""
           CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
+          CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "600000"
         run: |
           set -euo pipefail
           # Export chart API credentials from runner keys
