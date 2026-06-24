@@ -599,7 +599,7 @@ jobs:
           # Export chart API credentials from runner keys
           if [ -f "${RUNNER_KEY_FILE}" ]; then
             CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
-            CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // ""' "${RUNNER_KEY_FILE}")
+            CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
             if [ -n "${CHART_URL}" ]; then
               export CLOUDFLARE_CHART_API_URL="${CHART_URL}"
               echo "CLOUDFLARE_CHART_API_URL=${CHART_URL}" >> "${GITHUB_ENV}"
@@ -609,8 +609,36 @@ jobs:
               echo "::add-mask::${CHART_TOKEN}"
             fi
           fi
+          cat > .runner-bundle/tsconfig.runner.json <<'JSON'
+          {
+            "compilerOptions": {
+              "target": "ES2022",
+              "baseUrl": ".",
+              "module": "esnext",
+              "moduleResolution": "bundler",
+              "allowJs": true,
+              "allowImportingTsExtensions": true,
+              "esModuleInterop": true,
+              "resolveJsonModule": true,
+              "skipLibCheck": true,
+              "paths": {
+                "@/*": ["./src/*"]
+              }
+            },
+            "include": [
+              "src/**/*.ts",
+              "src/**/*.tsx",
+              "src/**/*.mts",
+              "src/**/*.js",
+              "scripts/**/*.ts",
+              "scripts/**/*.mts",
+              "scripts/**/*.js"
+            ],
+            "exclude": ["node_modules"]
+          }
+          JSON
           RECALC_EXIT=0
-          npx tsx .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
+          npx tsx --tsconfig .runner-bundle/tsconfig.runner.json .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
           echo "recalc_exit=${RECALC_EXIT}" >> "${GITHUB_OUTPUT}"
           if [ "${RECALC_EXIT}" -ne 0 ]; then
             echo "::warning::Recalculation exited with code ${RECALC_EXIT} — Cloudflare finalizer will attempt it as fallback"
@@ -620,6 +648,7 @@ jobs:
         if: always() && steps.recalc.outcome != 'skipped'
         env:
           DISCORD_WEBHOOK: ${{ vars.DISCORD_WEBHOOK_URL || '' }}
+          RECALC_EXIT: ${{ steps.recalc.outputs.recalc_exit || '1' }}
         run: |
           set -euo pipefail
           DISCORD_URL="${DISCORD_WEBHOOK}"
