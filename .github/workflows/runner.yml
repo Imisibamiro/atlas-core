@@ -656,12 +656,13 @@ jobs:
         if: always() && steps.recalc.outcome != 'skipped'
         env:
           RECALC_EXIT: ${{ steps.recalc.outputs.recalc_exit || '1' }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL || vars.DISCORD_WEBHOOK_URL || '' }}
         run: |
           set -euo pipefail
           SUMMARY="No recalculation output captured"
+          RECALC_JSON="{}"
           if [ -f /tmp/recalc-output.jsonl ]; then
-            SUMMARY=$(tail -1 /tmp/recalc-output.jsonl | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"Tracks: {d.get('processedTrackCount','?')}, Approved: {d.get('approvedTrackCount','?')}, Demoted: {d.get('demotedTrackCount','?')}, Chart-rule excluded: {d.get('chartRuleExcludedCount','?')}, Concurrency: {d.get('trackUpdateConcurrency','?')}, Elapsed: {d.get('elapsedSec','?')}s\")" 2>/dev/null || echo "Recalculation output was not valid JSON")
+            RECALC_JSON=$(tail -1 /tmp/recalc-output.jsonl | jq -c . 2>/dev/null || echo "{}")
+            SUMMARY=$(printf '%s' "${RECALC_JSON}" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"Tracks: {d.get('processedTrackCount','?')}, Approved: {d.get('approvedTrackCount','?')}, Demoted: {d.get('demotedTrackCount','?')}, Chart-rule excluded: {d.get('chartRuleExcludedCount','?')}, Concurrency: {d.get('trackUpdateConcurrency','?')}, Elapsed: {d.get('elapsedSec','?')}s\")" 2>/dev/null || echo "Recalculation output was not valid JSON")
           fi
 
           {
@@ -710,6 +711,7 @@ jobs:
               --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
               --arg recalc_exit "${RECALC_EXIT}" \
               --arg summary_text "${SUMMARY}" \
+              --argjson recalc_summary "${RECALC_JSON}" \
               '{
                 job: $job,
                 status: $status,
@@ -724,11 +726,11 @@ jobs:
                 run_attempt: $run_attempt,
                 run_url: $run_url,
                 recalc_exit: $recalc_exit,
-                summary: {
+                summary: ($recalc_summary + {
                   jobRunId: $job_run_id,
                   recalcExit: $recalc_exit,
                   text: $summary_text
-                }
+                })
               }')
 
             curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
@@ -737,109 +739,3 @@ jobs:
               -H "Accept: application/json" \
               -d "${REPORT_BODY}" >/dev/null
           fi
-
-          if [ -n "${DISCORD_WEBHOOK}" ]; then
-            if [ "${RECALC_EXIT}" -eq 0 ]; then
-              COLOR=2278750
-              STATUS="completed"
-            else
-              COLOR=15680580
-              STATUS="completed with recalc warning"
-            fi
-            REPORT_BODY=$(jq -n \
-              --arg title "NGMC Atlas refresh ${STATUS}" \
-              --arg job "${RUNNER_PARENT_JOB:-${RUNNER_JOB:-unknown}}" \
-              --arg run_id "${NGMC_REFRESH_RUN_ID:-${GITHUB_RUN_ID:-unknown}}" \
-              --arg max_items "${RUNNER_MAX_ITEMS:-0}" \
-              --arg dry_run "${RUNNER_DRY_RUN:-false}" \
-              --arg recalc_exit "${RECALC_EXIT}" \
-              --arg summary "${SUMMARY}" \
-              --arg url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-              --argjson color "${COLOR}" \
-              '{
-                embeds: [{
-                  title: $title,
-                  color: $color,
-                  timestamp: now | todateiso8601,
-                  fields: [
-                    {name: "Job", value: $job, inline: true},
-                    {name: "Run ID", value: $run_id, inline: false},
-                    {name: "Max items", value: $max_items, inline: true},
-                    {name: "Dry run", value: $dry_run, inline: true},
-                    {name: "Recalculation exit", value: $recalc_exit, inline: true},
-                    {name: "Refresh summary", value: $summary, inline: false},
-                    {name: "GitHub run", value: $url, inline: false}
-                  ]
-                }]
-              }')
-            curl -sS -H "Content-Type: application/json" -X POST "${DISCORD_WEBHOOK}" -d "${REPORT_BODY}" >/dev/null \
-              || echo "Discord webhook failed (non-fatal)"
-          fi
-
-  notify-atlas-result:
-    needs: [prepare-fanout, provider-fanout, finalize-fanout]
-    if: ${{ always() && (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Send Atlas workflow result
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL || vars.DISCORD_WEBHOOK_URL || '' }}
-          JOB_KIND: ${{ github.event.inputs.job }}
-          SOURCE: ${{ github.event.inputs.source }}
-          CRON: ${{ github.event.inputs.cron }}
-          DRY_RUN: ${{ github.event.inputs.dry_run }}
-          MAX_ITEMS: ${{ github.event.inputs.max_items }}
-          PREPARE_RESULT: ${{ needs.prepare-fanout.result }}
-          PROVIDER_RESULT: ${{ needs.provider-fanout.result }}
-          FINALIZE_RESULT: ${{ needs.finalize-fanout.result }}
-        run: |
-          set -euo pipefail
-          if [ -z "${DISCORD_WEBHOOK}" ]; then
-            echo "No Discord webhook configured — skipping notification"
-            exit 0
-          fi
-
-          if [ "${PREPARE_RESULT}" = "success" ] && [ "${PROVIDER_RESULT}" = "success" ] && [ "${FINALIZE_RESULT}" = "success" ]; then
-            STATUS="completed"
-            COLOR=2278750
-          else
-            STATUS="failed"
-            COLOR=15680580
-          fi
-
-          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          REPORT_BODY=$(jq -n \
-            --arg title "NGMC Atlas workflow ${STATUS}" \
-            --arg job "${JOB_KIND}" \
-            --arg run_id "${JOB_KIND}:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" \
-            --arg source "${SOURCE}" \
-            --arg cron "${CRON}" \
-            --arg dry_run "${DRY_RUN}" \
-            --arg max_items "${MAX_ITEMS}" \
-            --arg prepare "${PREPARE_RESULT}" \
-            --arg provider "${PROVIDER_RESULT}" \
-            --arg finalize "${FINALIZE_RESULT}" \
-            --arg url "${RUN_URL}" \
-            --argjson color "${COLOR}" \
-            '{
-              embeds: [{
-                title: $title,
-                color: $color,
-                timestamp: now | todateiso8601,
-                fields: [
-                  {name: "Job", value: $job, inline: true},
-                  {name: "Run ID", value: $run_id, inline: false},
-                  {name: "Source", value: $source, inline: true},
-                  {name: "Cron", value: $cron, inline: true},
-                  {name: "Dry run", value: $dry_run, inline: true},
-                  {name: "Max items", value: $max_items, inline: true},
-                  {name: "Prepare", value: $prepare, inline: true},
-                  {name: "Provider fanout", value: $provider, inline: true},
-                  {name: "Finalize", value: $finalize, inline: true},
-                  {name: "GitHub run", value: $url, inline: false}
-                ]
-              }]
-            }')
-          curl -sS -H "Content-Type: application/json" -X POST "${DISCORD_WEBHOOK}" -d "${REPORT_BODY}" >/dev/null \
-            || echo "Discord webhook failed (non-fatal)"
