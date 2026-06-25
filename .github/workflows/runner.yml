@@ -740,10 +740,10 @@ jobs:
 
           if [ -n "${DISCORD_WEBHOOK}" ]; then
             if [ "${RECALC_EXIT}" -eq 0 ]; then
-              COLOR=0x22c55e
+              COLOR=2278750
               STATUS="completed"
             else
-              COLOR=0xef4444
+              COLOR=15680580
               STATUS="completed with recalc warning"
             fi
             REPORT_BODY=$(jq -n \
@@ -802,10 +802,10 @@ jobs:
 
           if [ "${PREPARE_RESULT}" = "success" ] && [ "${PROVIDER_RESULT}" = "success" ] && [ "${FINALIZE_RESULT}" = "success" ]; then
             STATUS="completed"
-            COLOR=0x22c55e
+            COLOR=2278750
           else
             STATUS="failed"
-            COLOR=0xef4444
+            COLOR=15680580
           fi
 
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
