@@ -596,6 +596,7 @@ jobs:
         run: node scripts/run.mjs
 
       - name: Recalculate live chart
+        if: env.RUNNER_DRY_RUN != 'true'
         id: recalc
         env:
           CLOUDFLARE_CHART_API_URL: ""
