@@ -79,6 +79,7 @@ jobs:
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       NGMC_JOB_RUN_ID: ${{ github.event.inputs.job_run_id }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id }}
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.job_run_id }}
       CLASSIFIER_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
       CLASSIFIER_INCLUDE_LEGACY: ${{ github.event.inputs.include_legacy }}
