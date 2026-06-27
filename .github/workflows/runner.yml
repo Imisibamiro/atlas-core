@@ -416,7 +416,7 @@ jobs:
             sleep ${POLL_INTERVAL}
             STATUS_RESPONSE=$(curl -sS "${CHART_URL}/v1/admin/jobs/${JOB_ID}/status" \
               -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{"status":"unknown"}')
-            STATUS=$(echo "${STATUS_RESPONSE}" | jq -r '.status // "unknown"')
+            STATUS=$(echo "${STATUS_RESPONSE}" | jq -r '.job.status // .status // "unknown"')
             echo "Poll ${i}/${MAX_POLLS}: job status=${STATUS}"
             if [ "${STATUS}" = "completed" ] || [ "${STATUS}" = "success" ]; then
               echo "Recalculation completed successfully"
