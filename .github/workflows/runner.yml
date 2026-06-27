@@ -294,7 +294,9 @@ jobs:
           }
           JSON
           RECALC_EXIT=0
-          npx tsx --tsconfig .runner-bundle/tsconfig.runner.json .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
+          curl -sS -f -X POST "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/jobs/recalculate-live-chart?sync=1" \
+            -H "Authorization: Bearer ${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+            -H "Accept: application/json" | tee /tmp/native-recalculate-live-chart.json || RECALC_EXIT=$?
           echo "recalc_exit=${RECALC_EXIT}" >> "${GITHUB_OUTPUT}"
           if [ "${RECALC_EXIT}" -ne 0 ]; then
             echo "::warning::Recalculation exited with code ${RECALC_EXIT} — Cloudflare finalizer will attempt it as fallback"
