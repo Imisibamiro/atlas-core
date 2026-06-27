@@ -418,12 +418,12 @@ jobs:
               -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{"status":"unknown"}')
             STATUS=$(echo "${STATUS_RESPONSE}" | jq -r '.job.status // .status // "unknown"')
             echo "Poll ${i}/${MAX_POLLS}: job status=${STATUS}"
-            if [ "${STATUS}" = "completed" ] || [ "${STATUS}" = "success" ]; then
+            if [ "${STATUS}" = "completed" ] || [ "${STATUS}" = "success" ] || [ "${STATUS}" = "succeeded" ]; then
               echo "Recalculation completed successfully"
               echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
               exit 0
             fi
-            if [ "${STATUS}" = "failed" ] || [ "${STATUS}" = "error" ]; then
+            if [ "${STATUS}" = "failed" ] || [ "${STATUS}" = "error" ] || [ "${STATUS}" = "errored" ]; then
               echo "::warning::Recalculation job failed: $(echo "${STATUS_RESPONSE}" | jq -r '.error // "unknown"')"
               echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
               exit 1
