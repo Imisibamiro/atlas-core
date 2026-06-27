@@ -68,7 +68,7 @@ concurrency:
 
 jobs:
   run:
-    if: ${{ github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' }}
+    if: ${{ github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'recalculate-live-chart' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -301,6 +301,128 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
             -d "${REPORT_BODY}" >/dev/null
+
+  recalculate:
+    if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      RUNNER_JOB: ${{ github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
+      NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install root deps
+        run: npm install --omit=dev
+
+      - name: Request OIDC token
+        id: oidc
+        run: |
+          set -euo pipefail
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
+          test -n "${OIDC_TOKEN}"
+          echo "::add-mask::${OIDC_TOKEN}"
+          echo "oidc_token=${OIDC_TOKEN}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fetch configuration
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "{\"job\": \"${{ github.event.inputs.job }}\"}")
+          test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
+          KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
+          umask 077
+          echo "${RESPONSE}" | jq -c '.keys // {}' > "${KEY_FILE}"
+          echo "${RESPONSE}" | jq -r '.keys | to_entries[] | @base64' | while IFS= read -r row; do
+            value=$(echo "${row}" | base64 --decode | jq -r '.value')
+            while IFS= read -r secret_line; do
+              test -z "${secret_line}" || echo "::add-mask::${secret_line}"
+            done <<< "${value}"
+          done
+          echo "RUNNER_KEY_FILE=${KEY_FILE}" >> "${GITHUB_ENV}"
+          echo "RUNNER_SUMMARY_FILE=${RUNNER_TEMP}/runner-summary.json" >> "${GITHUB_ENV}"
+
+      - name: Fetch runner bundle
+        run: |
+          set -euo pipefail
+          mkdir -p .runner-bundle
+          curl -sS -f -L "${KEY_BROKER_URL%/}/v1/internal/runner/bundle" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Accept: application/gzip" \
+            -o /tmp/runner-bundle.tgz
+          tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
+
+      - name: Install bundle deps
+        run: |
+          set -euo pipefail
+          if [ -f .runner-bundle/package-lock.json ]; then
+            npm ci --omit=dev --prefix .runner-bundle
+          elif [ -f .runner-bundle/package.json ]; then
+            npm install --omit=dev --prefix .runner-bundle
+          fi
+
+      - name: Recalculate live chart
+        id: recalc
+        env:
+          CLOUDFLARE_CHART_API_URL: ""
+          CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
+          CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "3600000"
+          CLOUDFLARE_RECALC_UPDATE_CONCURRENCY: "30"
+        run: |
+          set -euo pipefail
+          if [ -f "${RUNNER_KEY_FILE}" ]; then
+            CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+            CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+            if [ -n "${CHART_URL}" ]; then
+              export CLOUDFLARE_CHART_API_URL="${CHART_URL}"
+              echo "CLOUDFLARE_CHART_API_URL=${CHART_URL}" >> "${GITHUB_ENV}"
+            fi
+            if [ -n "${CHART_TOKEN}" ]; then
+              export CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CHART_TOKEN}"
+              echo "::add-mask::${CHART_TOKEN}"
+            fi
+          fi
+          cat > .runner-bundle/tsconfig.runner.json <<'JSON'
+          {
+            "compilerOptions": {
+              "target": "ES2022",
+              "baseUrl": ".",
+              "module": "esnext",
+              "moduleResolution": "bundler",
+              "allowJs": true,
+              "allowImportingTsExtensions": true,
+              "esModuleInterop": true,
+              "resolveJsonModule": true,
+              "skipLibCheck": true,
+              "paths": { "@/*": ["./src/*"] }
+            },
+            "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.mts", "src/**/*.js", "scripts/**/*.ts", "scripts/**/*.mts", "scripts/**/*.js"],
+            "exclude": ["node_modules"]
+          }
+          JSON
+          RECALC_EXIT=0
+          npx tsx --tsconfig .runner-bundle/tsconfig.runner.json .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
+          echo "recalc_exit=${RECALC_EXIT}" >> "${GITHUB_OUTPUT}"
+          if [ "${RECALC_EXIT}" -ne 0 ]; then
+            echo "::warning::Recalculation exited with code ${RECALC_EXIT}"
+          fi
 
   prepare-fanout:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
