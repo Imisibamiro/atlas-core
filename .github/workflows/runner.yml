@@ -238,8 +238,68 @@ jobs:
           fi
 
       - name: Run job
+        if: ${{ github.event.inputs.job != 'recalculate-live-chart' }}
         id: run_job
         run: node scripts/run.mjs
+
+      - name: Recalculate live chart
+        if: env.RUNNER_DRY_RUN != 'true'
+        id: recalc
+        env:
+          CLOUDFLARE_CHART_API_URL: ""
+          CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
+          CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "3600000"
+          CLOUDFLARE_RECALC_UPDATE_CONCURRENCY: "30"
+        run: |
+          set -euo pipefail
+          # Export chart API credentials from runner keys
+          if [ -f "${RUNNER_KEY_FILE}" ]; then
+            CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+            CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+            if [ -n "${CHART_URL}" ]; then
+              export CLOUDFLARE_CHART_API_URL="${CHART_URL}"
+              echo "CLOUDFLARE_CHART_API_URL=${CHART_URL}" >> "${GITHUB_ENV}"
+            fi
+            if [ -n "${CHART_TOKEN}" ]; then
+              export CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CHART_TOKEN}"
+              echo "::add-mask::${CHART_TOKEN}"
+            fi
+          fi
+          cat > .runner-bundle/tsconfig.runner.json <<'JSON'
+          {
+            "compilerOptions": {
+              "target": "ES2022",
+              "baseUrl": ".",
+              "module": "esnext",
+              "moduleResolution": "bundler",
+              "allowJs": true,
+              "allowImportingTsExtensions": true,
+              "esModuleInterop": true,
+              "resolveJsonModule": true,
+              "skipLibCheck": true,
+              "paths": {
+                "@/*": ["./src/*"]
+              }
+            },
+            "include": [
+              "src/**/*.ts",
+              "src/**/*.tsx",
+              "src/**/*.mts",
+              "src/**/*.js",
+              "scripts/**/*.ts",
+              "scripts/**/*.mts",
+              "scripts/**/*.js"
+            ],
+            "exclude": ["node_modules"]
+          }
+          JSON
+          RECALC_EXIT=0
+          npx tsx --tsconfig .runner-bundle/tsconfig.runner.json .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
+          echo "recalc_exit=${RECALC_EXIT}" >> "${GITHUB_OUTPUT}"
+          if [ "${RECALC_EXIT}" -ne 0 ]; then
+            echo "::warning::Recalculation exited with code ${RECALC_EXIT} — Cloudflare finalizer will attempt it as fallback"
+          fi
+
 
       - name: Notify status
         if: always()
