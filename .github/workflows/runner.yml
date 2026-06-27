@@ -380,49 +380,58 @@ jobs:
 
       - name: Recalculate live chart
         id: recalc
-        env:
-          CLOUDFLARE_CHART_API_URL: ""
-          CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
-          CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "3600000"
-          CLOUDFLARE_RECALC_UPDATE_CONCURRENCY: "30"
         run: |
           set -euo pipefail
+          # Export chart API credentials from runner keys
+          CHART_URL=""
+          CHART_TOKEN=""
           if [ -f "${RUNNER_KEY_FILE}" ]; then
             CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
             CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
-            if [ -n "${CHART_URL}" ]; then
-              export CLOUDFLARE_CHART_API_URL="${CHART_URL}"
-              echo "CLOUDFLARE_CHART_API_URL=${CHART_URL}" >> "${GITHUB_ENV}"
-            fi
-            if [ -n "${CHART_TOKEN}" ]; then
-              export CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CHART_TOKEN}"
-              echo "::add-mask::${CHART_TOKEN}"
-            fi
           fi
-          cat > .runner-bundle/tsconfig.runner.json <<'JSON'
-          {
-            "compilerOptions": {
-              "target": "ES2022",
-              "baseUrl": ".",
-              "module": "esnext",
-              "moduleResolution": "bundler",
-              "allowJs": true,
-              "allowImportingTsExtensions": true,
-              "esModuleInterop": true,
-              "resolveJsonModule": true,
-              "skipLibCheck": true,
-              "paths": { "@/*": ["./src/*"] }
-            },
-            "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.mts", "src/**/*.js", "scripts/**/*.ts", "scripts/**/*.mts", "scripts/**/*.js"],
-            "exclude": ["node_modules"]
-          }
-          JSON
-          RECALC_EXIT=0
-          npx tsx --tsconfig .runner-bundle/tsconfig.runner.json .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
-          echo "recalc_exit=${RECALC_EXIT}" >> "${GITHUB_OUTPUT}"
-          if [ "${RECALC_EXIT}" -ne 0 ]; then
-            echo "::warning::Recalculation exited with code ${RECALC_EXIT}"
+          if [ -z "${CHART_URL}" ]; then
+            echo "::error::Chart API URL not available from runner keys"
+            exit 1
           fi
+          echo "::add-mask::${CHART_TOKEN}"
+
+          # Queue the recalculation asynchronously via Cloudflare-native scoring
+          QUEUE_RESPONSE=$(curl -sS -f -X POST "${CHART_URL}/v1/admin/jobs/recalculate-live-chart" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          JOB_ID=$(echo "${QUEUE_RESPONSE}" | jq -r '.jobId // ""')
+          echo "Recalculation queued: ${JOB_ID}"
+          echo "job_id=${JOB_ID}" >> "${GITHUB_OUTPUT}"
+
+          if [ -z "${JOB_ID}" ]; then
+            echo "::error::Failed to queue recalculation: ${QUEUE_RESPONSE}"
+            exit 1
+          fi
+
+          # Poll for completion
+          MAX_POLLS=120
+          POLL_INTERVAL=15
+          for i in $(seq 1 ${MAX_POLLS}); do
+            sleep ${POLL_INTERVAL}
+            STATUS_RESPONSE=$(curl -sS "${CHART_URL}/v1/admin/jobs/${JOB_ID}/status" \
+              -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{"status":"unknown"}')
+            STATUS=$(echo "${STATUS_RESPONSE}" | jq -r '.status // "unknown"')
+            echo "Poll ${i}/${MAX_POLLS}: job status=${STATUS}"
+            if [ "${STATUS}" = "completed" ] || [ "${STATUS}" = "success" ]; then
+              echo "Recalculation completed successfully"
+              echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+            if [ "${STATUS}" = "failed" ] || [ "${STATUS}" = "error" ]; then
+              echo "::warning::Recalculation job failed: $(echo "${STATUS_RESPONSE}" | jq -r '.error // "unknown"')"
+              echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
+              exit 1
+            fi
+          done
+
+          echo "::warning::Recalculation job did not complete within timeout"
+          echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
 
   prepare-fanout:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
