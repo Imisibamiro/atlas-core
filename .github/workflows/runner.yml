@@ -313,7 +313,7 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
-      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
@@ -379,19 +379,447 @@ jobs:
           fi
 
       - name: Recalculate live chart
+        id: recalc
+        env:
+          CLOUDFLARE_RECALC_MAX_POLLS: "60"
+          CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS: "15"
+        run: |
+          set -euo pipefail
+          # Export chart API credentials from runner keys
+          CHART_URL=""
+          CHART_TOKEN=""
+          if [ -f "${RUNNER_KEY_FILE}" ]; then
+            CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+            CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          fi
+          if [ -z "${CHART_URL}" ]; then
+            echo "::error::Chart API URL not available from runner keys"
+            exit 1
+          fi
+          echo "::add-mask::${CHART_TOKEN}"
+
+          # Queue the recalculation asynchronously via Cloudflare-native scoring
+          QUEUE_RESPONSE=$(curl -sS -f -X POST "${CHART_URL}/v1/admin/jobs/recalculate-live-chart" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          JOB_ID=$(echo "${QUEUE_RESPONSE}" | jq -r '.jobId // ""')
+          echo "Recalculation queued: ${JOB_ID}"
+          echo "job_id=${JOB_ID}" >> "${GITHUB_OUTPUT}"
+
+          if [ -z "${JOB_ID}" ]; then
+            echo "::error::Failed to queue recalculation: ${QUEUE_RESPONSE}"
+            exit 1
+          fi
+
+          # Poll for the parent job. “Accepted” is not completion: all chunks, preview rows,
+          # cache invalidation, and score freshness must be confirmed before GitHub succeeds.
+          MAX_POLLS="${CLOUDFLARE_RECALC_MAX_POLLS:-60}"
+          POLL_INTERVAL="${CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS:-15}"
+          LAST_STATUS="queued"
+          LAST_TOTAL_CHUNKS=0
+          LAST_COMPLETED_CHUNKS=0
+          LAST_FAILED_CHUNKS=0
+
+          for i in $(seq 1 "${MAX_POLLS}"); do
+            sleep "${POLL_INTERVAL}"
+            STATUS_RESPONSE=$(curl -sS "${CHART_URL}/v1/admin/jobs/${JOB_ID}/status" \
+              -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{"status":"unknown"}')
+            STATUS=$(echo "${STATUS_RESPONSE}" | jq -r '.job.status // .status // "unknown"' 2>/dev/null || echo "unknown")
+            TOTAL_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.totalChunks // .job.result.summary.total_chunks // .job.total_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
+            COMPLETED_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.completedChunks // .job.result.summary.completed_chunks // .job.completed_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
+            FAILED_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.failedChunks // .job.result.summary.failed_chunks // .job.failed_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
+            LAST_STATUS="${STATUS}"
+            LAST_TOTAL_CHUNKS="${TOTAL_CHUNKS}"
+            LAST_COMPLETED_CHUNKS="${COMPLETED_CHUNKS}"
+            LAST_FAILED_CHUNKS="${FAILED_CHUNKS}"
+            echo "Poll ${i}/${MAX_POLLS}: status=${STATUS}; chunks=${COMPLETED_CHUNKS}/${TOTAL_CHUNKS}; failed=${FAILED_CHUNKS}"
+
+            if [ "${STATUS}" = "failed" ] || [ "${STATUS}" = "error" ] || [ "${STATUS}" = "errored" ] || [ "${STATUS}" = "cancelled" ]; then
+              echo "::error::Cloudflare recalculation job failed: $(echo "${STATUS_RESPONSE}" | jq -r '.job.error // .error // "unknown"')"
+              echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
+              exit 1
+            fi
+
+            if [ "${STATUS}" = "completed" ] || [ "${STATUS}" = "success" ] || [ "${STATUS}" = "succeeded" ]; then
+              if [ "${FAILED_CHUNKS}" -gt 0 ] || { [ "${TOTAL_CHUNKS}" -gt 0 ] && [ "${COMPLETED_CHUNKS}" -lt "${TOTAL_CHUNKS}" ]; }; then
+                echo "Cloudflare reported a terminal status before chunk completion; continuing to wait."
+                continue
+              fi
+
+              CHART_STATUS=$(curl -sS "${CHART_URL}/v1/admin/chart-status" \
+                -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{}')
+              LAST_DATA=$(echo "${CHART_STATUS}" | jq -r '.lastDataUpdate // ""')
+              LAST_SCORE=$(echo "${CHART_STATUS}" | jq -r '.lastScoreRefresh // ""')
+              HAS_STALE=$(echo "${CHART_STATUS}" | jq -r '.hasStaleScores // true')
+              STALE_COUNT=$(echo "${CHART_STATUS}" | jq -r '.staleTrackCount // 0')
+              if [ -n "${LAST_DATA}" ] && [ -n "${LAST_SCORE}" ] \
+                && { [ "${LAST_SCORE}" = "${LAST_DATA}" ] || [[ "${LAST_SCORE}" > "${LAST_DATA}" ]]; } \
+                && [ "${HAS_STALE}" != "true" ] && [ "${STALE_COUNT}" -eq 0 ]; then
+                echo "Recalculation completed with fresh scores and a materialised live preview."
+                echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
+                exit 0
+              fi
+              echo "Cloudflare job succeeded but fresh score/preview state is not visible yet; continuing to wait."
+            fi
+          done
+
+          echo "::error::Recalculation job ${JOB_ID} did not complete with fresh chart output within $((MAX_POLLS * POLL_INTERVAL)) seconds. Final status=${LAST_STATUS}; chunks=${LAST_COMPLETED_CHUNKS}/${LAST_TOTAL_CHUNKS}; failed=${LAST_FAILED_CHUNKS}."
+          echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
+          exit 1
+
+  prepare-fanout:
+    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      run_id: ${{ steps.start.outputs.run_id }}
+      snapshot_at: ${{ steps.start.outputs.snapshot_at }}
+    env:
+      RUNNER_JOB: ${{ github.event.inputs.job }}-start
+      RUNNER_KEY_JOB: daily-refresh-fanout-start
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
+      NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
+      KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install root deps
+        run: npm install --omit=dev
+
+      - name: Request OIDC token
+        id: oidc
+        run: |
+          set -euo pipefail
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
+          test -n "${OIDC_TOKEN}"
+          echo "::add-mask::${OIDC_TOKEN}"
+          echo "oidc_token=${OIDC_TOKEN}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fetch configuration
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "{\"job\": \"${RUNNER_KEY_JOB:-$RUNNER_JOB}\"}")
+          test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
+          KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
+          umask 077
+          echo "${RESPONSE}" | jq -c '.keys // {}' > "${KEY_FILE}"
+          echo "${RESPONSE}" | jq -r '.keys | to_entries[] | @base64' | while IFS= read -r row; do
+            value=$(echo "${row}" | base64 --decode | jq -r '.value')
+            while IFS= read -r secret_line; do
+              test -z "${secret_line}" || echo "::add-mask::${secret_line}"
+            done <<< "${value}"
+          done
+          echo "RUNNER_KEY_FILE=${KEY_FILE}" >> "${GITHUB_ENV}"
+          echo "RUNNER_SUMMARY_FILE=${RUNNER_TEMP}/runner-summary.json" >> "${GITHUB_ENV}"
+
+      - name: Fetch runner bundle
+        run: |
+          set -euo pipefail
+          mkdir -p .runner-bundle
+          curl -sS -f -L "${KEY_BROKER_URL%/}/v1/internal/runner/bundle" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Accept: application/gzip" \
+            -o /tmp/runner-bundle.tgz
+          tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
+
+      - name: Install bundle deps
+        run: |
+          set -euo pipefail
+          if [ -f .runner-bundle/package-lock.json ]; then
+            npm ci --omit=dev --prefix .runner-bundle
+          elif [ -f .runner-bundle/package.json ]; then
+            npm install --omit=dev --prefix .runner-bundle
+          fi
+
+      - name: Start fanout run
+        id: start
+        run: node scripts/run.mjs
+
+  provider-fanout:
+    needs: prepare-fanout
+    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [p1, p2, p3, p4, p5]
+    env:
+      RUNNER_JOB: refresh-part:${{ matrix.part }}
+      RUNNER_KEY_JOB: refresh-part:${{ matrix.part }}
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
+      NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install root deps
+        run: npm install --omit=dev
+
+      - name: Request OIDC token
+        id: oidc
+        run: |
+          set -euo pipefail
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
+          test -n "${OIDC_TOKEN}"
+          echo "::add-mask::${OIDC_TOKEN}"
+          echo "oidc_token=${OIDC_TOKEN}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fetch configuration
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "{\"job\": \"${RUNNER_KEY_JOB:-$RUNNER_JOB}\"}")
+          test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
+          KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
+          umask 077
+          echo "${RESPONSE}" | jq -c '.keys // {}' > "${KEY_FILE}"
+          echo "${RESPONSE}" | jq -r '.keys | to_entries[] | @base64' | while IFS= read -r row; do
+            value=$(echo "${row}" | base64 --decode | jq -r '.value')
+            while IFS= read -r secret_line; do
+              test -z "${secret_line}" || echo "::add-mask::${secret_line}"
+            done <<< "${value}"
+          done
+          echo "RUNNER_KEY_FILE=${KEY_FILE}" >> "${GITHUB_ENV}"
+          echo "RUNNER_SUMMARY_FILE=${RUNNER_TEMP}/runner-summary.json" >> "${GITHUB_ENV}"
+
+      - name: Fetch runner bundle
+        run: |
+          set -euo pipefail
+          mkdir -p .runner-bundle
+          curl -sS -f -L "${KEY_BROKER_URL%/}/v1/internal/runner/bundle" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Accept: application/gzip" \
+            -o /tmp/runner-bundle.tgz
+          tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
+
+      - name: Cache bundle dependency downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/pip
+          key: fanout-deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/**/requirements.txt') }}
+          restore-keys: |
+            fanout-deps-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Prepare Playwright browser cache path
+        run: mkdir -p ~/.cache/ms-playwright
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: fanout-playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json') }}
+          restore-keys: |
+            fanout-playwright-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install bundle deps
+        run: |
+          set -euo pipefail
+          if [ -f .runner-bundle/package-lock.json ]; then
+            npm ci --omit=dev --prefix .runner-bundle
+          elif [ -f .runner-bundle/package.json ]; then
+            npm install --omit=dev --prefix .runner-bundle
+          fi
+          if node -e "const p=require('./.runner-bundle/package.json'); process.exit(p.scripts && p.scripts.setup ? 0 : 1)" 2>/dev/null; then
+            npm run setup --prefix .runner-bundle
+          fi
+          if [ -f .runner-bundle/requirements.txt ]; then
+            pip install -r .runner-bundle/requirements.txt
+          fi
+
+      - name: Run provider part
+        run: node scripts/run.mjs
+
+  finalize-fanout:
+    needs: [prepare-fanout, provider-fanout]
+    if: ${{ always() && (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'daily-refresh-fanout-finalize' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      RUNNER_JOB: ${{ (github.event.inputs.job == 'daily-refresh-fanout-finalize' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize') && github.event.inputs.job || format('{0}-finalize', github.event.inputs.job) }}
+      RUNNER_KEY_JOB: daily-refresh-fanout-finalize
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job == 'daily-refresh-fanout-finalize' && 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize' && 'full-discovery-refresh-fanout' || github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job == 'daily-refresh-fanout-finalize' && 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize' && 'full-discovery-refresh-fanout' || github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
+      NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install root deps
+        run: npm install --omit=dev
+
+      - name: Request OIDC token
+        id: oidc
+        run: |
+          set -euo pipefail
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
+          test -n "${OIDC_TOKEN}"
+          echo "::add-mask::${OIDC_TOKEN}"
+          echo "oidc_token=${OIDC_TOKEN}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fetch configuration
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "{\"job\": \"${RUNNER_KEY_JOB:-$RUNNER_JOB}\"}")
+          test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
+          KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
+          umask 077
+          echo "${RESPONSE}" | jq -c '.keys // {}' > "${KEY_FILE}"
+          echo "${RESPONSE}" | jq -r '.keys | to_entries[] | @base64' | while IFS= read -r row; do
+            value=$(echo "${row}" | base64 --decode | jq -r '.value')
+            while IFS= read -r secret_line; do
+              test -z "${secret_line}" || echo "::add-mask::${secret_line}"
+            done <<< "${value}"
+          done
+          echo "RUNNER_KEY_FILE=${KEY_FILE}" >> "${GITHUB_ENV}"
+          echo "RUNNER_SUMMARY_FILE=${RUNNER_TEMP}/runner-summary.json" >> "${GITHUB_ENV}"
+
+      - name: Fetch runner bundle
+        run: |
+          set -euo pipefail
+          mkdir -p .runner-bundle
+          curl -sS -f -L "${KEY_BROKER_URL%/}/v1/internal/runner/bundle" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Accept: application/gzip" \
+            -o /tmp/runner-bundle.tgz
+          tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
+
+      - name: Install bundle deps
+        run: |
+          set -euo pipefail
+          if [ -f .runner-bundle/package-lock.json ]; then
+            npm ci --omit=dev --prefix .runner-bundle
+          elif [ -f .runner-bundle/package.json ]; then
+            npm install --omit=dev --prefix .runner-bundle
+          fi
+
+      - name: Finalize fanout
+        run: node scripts/run.mjs
+
+      - name: Recalculate live chart
         if: env.RUNNER_DRY_RUN != 'true'
         id: recalc
         env:
-          CLOUDFLARE_RECALC_WAIT_TIMEOUT_MS: "900000"
-          CLOUDFLARE_RECALC_WAIT_POLL_MS: "15000"
+          CLOUDFLARE_CHART_API_URL: ""
+          CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
+          CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "3600000"
+          CLOUDFLARE_RECALC_UPDATE_CONCURRENCY: "30"
         run: |
           set -euo pipefail
+          # Export chart API credentials from runner keys
+          if [ -f "${RUNNER_KEY_FILE}" ]; then
+            CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+            CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+            if [ -n "${CHART_URL}" ]; then
+              export CLOUDFLARE_CHART_API_URL="${CHART_URL}"
+              echo "CLOUDFLARE_CHART_API_URL=${CHART_URL}" >> "${GITHUB_ENV}"
+            fi
+            if [ -n "${CHART_TOKEN}" ]; then
+              export CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CHART_TOKEN}"
+              echo "::add-mask::${CHART_TOKEN}"
+            fi
+          fi
+          cat > .runner-bundle/tsconfig.runner.json <<'JSON'
+          {
+            "compilerOptions": {
+              "target": "ES2022",
+              "baseUrl": ".",
+              "module": "esnext",
+              "moduleResolution": "bundler",
+              "allowJs": true,
+              "allowImportingTsExtensions": true,
+              "esModuleInterop": true,
+              "resolveJsonModule": true,
+              "skipLibCheck": true,
+              "paths": {
+                "@/*": ["./src/*"]
+              }
+            },
+            "include": [
+              "src/**/*.ts",
+              "src/**/*.tsx",
+              "src/**/*.mts",
+              "src/**/*.js",
+              "scripts/**/*.ts",
+              "scripts/**/*.mts",
+              "scripts/**/*.js"
+            ],
+            "exclude": ["node_modules"]
+          }
+          JSON
           RECALC_EXIT=0
-          RUNNER_JOB=recalculate-live-chart node scripts/run.mjs | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
+          npx tsx --tsconfig .runner-bundle/tsconfig.runner.json .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
           echo "recalc_exit=${RECALC_EXIT}" >> "${GITHUB_OUTPUT}"
           if [ "${RECALC_EXIT}" -ne 0 ]; then
-            echo "::error::Cloudflare recalculation did not complete successfully; see the chunk progress above."
+            echo "::warning::Recalculation exited with code ${RECALC_EXIT} — Cloudflare finalizer will attempt it as fallback"
           fi
+
       - name: Write refresh report
         if: always() && steps.recalc.outcome != 'skipped'
         env:
@@ -401,85 +829,7 @@ jobs:
           SUMMARY="No recalculation output captured"
           RECALC_JSON="{}"
           if [ -f /tmp/recalc-output.jsonl ]; then
-            RECALC_JSON=$(grep -E '^\{.*\}
-            SUMMARY=$(printf '%s' "${RECALC_JSON}" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"Cloudflare job: {d.get('jobId','?')}; chunks: {d.get('completedChunks','?')}/{d.get('totalChunks','?')}; waited: {round(float(d.get('waitedMs',0) or 0)/1000)}s; score refresh: {d.get('lastScoreRefresh','?')}\")" 2>/dev/null || echo "Recalculation output was not valid JSON")
-          fi
-
-          {
-            echo "## NGMC Refresh Report"
-            echo
-            echo "| Field | Value |"
-            echo "| --- | --- |"
-            echo "| Job | ${RUNNER_PARENT_JOB:-${RUNNER_JOB:-unknown}} |"
-            echo "| Run ID | ${NGMC_REFRESH_RUN_ID:-${GITHUB_RUN_ID:-unknown}} |"
-            echo "| Max items | ${RUNNER_MAX_ITEMS:-0} |"
-            echo "| Dry run | ${RUNNER_DRY_RUN:-false} |"
-            echo "| Recalculation exit | ${RECALC_EXIT} |"
-            echo "| Summary | ${SUMMARY} |"
-            echo "| Run URL | ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} |"
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-          echo "::notice title=NGMC refresh report::${SUMMARY}; recalc_exit=${RECALC_EXIT}; max_items=${RUNNER_MAX_ITEMS:-0}"
-
-          if [ -n "${KEY_BROKER_URL:-}" ]; then
-            REPORT_OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
-            if [ -z "${REPORT_OIDC_TOKEN}" ]; then
-              echo "Report OIDC token request returned no token"
-              exit 1
-            fi
-            echo "::add-mask::${REPORT_OIDC_TOKEN}"
-
-            if [ "${RECALC_EXIT}" -eq 0 ]; then
-              RECALC_STATUS="success"
-            else
-              RECALC_STATUS="failure"
-            fi
-
-            REPORT_BODY=$(jq -n \
-              --arg job "recalculate-live-chart" \
-              --arg status "${RECALC_STATUS}" \
-              --arg source "${RUNNER_SOURCE}" \
-              --arg cron "${RUNNER_CRON}" \
-              --arg dispatched_at "${RUNNER_DISPATCHED_AT}" \
-              --arg dry_run "${RUNNER_DRY_RUN}" \
-              --arg max_items "${RUNNER_MAX_ITEMS}" \
-              --arg job_run_id "${NGMC_REFRESH_RUN_ID}" \
-              --arg repository "${GITHUB_REPOSITORY}" \
-              --arg run_id "${GITHUB_RUN_ID}" \
-              --arg run_attempt "${GITHUB_RUN_ATTEMPT}" \
-              --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-              --arg recalc_exit "${RECALC_EXIT}" \
-              --arg summary_text "${SUMMARY}" \
-              --argjson recalc_summary "${RECALC_JSON}" \
-              '{
-                job: $job,
-                status: $status,
-                source: $source,
-                cron: $cron,
-                dispatched_at: $dispatched_at,
-                dry_run: $dry_run,
-                max_items: $max_items,
-                job_run_id: $job_run_id,
-                repository: $repository,
-                run_id: $run_id,
-                run_attempt: $run_attempt,
-                run_url: $run_url,
-                recalc_exit: $recalc_exit,
-                summary: ($recalc_summary + {
-                  jobRunId: $job_run_id,
-                  recalcExit: $recalc_exit,
-                  text: $summary_text
-                })
-              }')
-
-            curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
-              -H "Authorization: Bearer ${REPORT_OIDC_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -H "Accept: application/json" \
-              -d "${REPORT_BODY}" >/dev/null
-          fi
- /tmp/recalc-output.jsonl | tail -1 | jq -c . 2>/dev/null || echo "{}")
+            RECALC_JSON=$(tail -1 /tmp/recalc-output.jsonl | jq -c . 2>/dev/null || echo "{}")
             SUMMARY=$(printf '%s' "${RECALC_JSON}" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"Tracks: {d.get('processedTrackCount','?')}, Approved: {d.get('approvedTrackCount','?')}, Demoted: {d.get('demotedTrackCount','?')}, Chart-rule excluded: {d.get('chartRuleExcludedCount','?')}, Concurrency: {d.get('trackUpdateConcurrency','?')}, Elapsed: {d.get('elapsedSec','?')}s\")" 2>/dev/null || echo "Recalculation output was not valid JSON")
           fi
 
