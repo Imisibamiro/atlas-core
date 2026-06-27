@@ -305,7 +305,7 @@ jobs:
   recalculate:
     if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       RUNNER_JOB: ${{ github.event.inputs.job }}
       RUNNER_SOURCE: ${{ github.event.inputs.source }}
@@ -409,8 +409,8 @@ jobs:
             exit 1
           fi
 
-          # Poll for completion
-          MAX_POLLS=120
+          # Poll for completion (up to ~60 minutes)
+          MAX_POLLS=240
           POLL_INTERVAL=15
           for i in $(seq 1 ${MAX_POLLS}); do
             sleep ${POLL_INTERVAL}
