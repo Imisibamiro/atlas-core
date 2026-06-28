@@ -1,5 +1,5 @@
 import json, sys, os
-from datetime import date
+from datetime import date, datetime, timezone
 
 ITEMS_FILE = os.environ.get('ITEMS_FILE', '/tmp/gospel-new-items.json')
 STATE_FILE = os.environ.get('STATE_FILE', 'data/gospel-alerts-state.txt')
@@ -121,7 +121,7 @@ payload = {
         'description': desc,
         'fields': fields,
         'footer': {'text': 'GA · NGMC'},
-        'timestamp': os.environ.get('NOW_ISO', date.today().isoformat() + 'T00:00:00Z')
+        'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     }]
 }
 
