@@ -33,7 +33,6 @@ jobs:
           ITEMS_FILE: /tmp/gospel-new-items.json
           STATE_FILE: data/gospel-alerts-state.txt
           REPORT_FILE: data/ga-latest.md
-          NOW_ISO: $(date -u +%Y-%m-%dT%H:%M:%SZ)
         run: python3 scripts/ga-report.py
 
       - name: Commit state + report
