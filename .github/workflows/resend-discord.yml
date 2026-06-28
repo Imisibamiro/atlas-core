@@ -1,0 +1,92 @@
+name: Resend GA to Discord
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and send Discord payload from committed report
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, re
+          from datetime import datetime, timezone
+
+          webhook_url = os.environ.get('DISCORD_WEBHOOK_URL', '')
+          if not webhook_url:
+              print("No DISCORD_WEBHOOK_URL secret set")
+              exit(0)
+
+          report_file = 'data/ga-latest.md'
+          with open(report_file) as f:
+              content = f.read()
+
+          date_match = re.search(r'GA Daily Report — (\d{4}-\d{2}-\d{2})', content)
+          count_match = re.search(r'\*\*(\d+)\*\* new items', content)
+          report_date = date_match.group(1) if date_match else 'Unknown'
+          total = int(count_match.group(1)) if count_match else 0
+
+          repo = os.environ.get('GITHUB_REPOSITORY', 'Imisibamiro/atlas-core')
+          report_link = f"https://github.com/{repo}/blob/main/{report_file}"
+
+          # Parse source breakdown
+          source_lines = []
+          in_sources = False
+          for line in content.splitlines():
+              if line.strip() == '### By Source':
+                  in_sources = True
+                  continue
+              if in_sources:
+                  if line.startswith('###') or line.startswith('##'):
+                      break
+                  m = re.match(r'- (.+): (\d+)', line)
+                  if m:
+                      source_lines.append(f"{m.group(1)}: {m.group(2)}")
+
+          # Parse category breakdown
+          cat_counts = []
+          for m in re.finditer(r'## (.+?) \((\d+)\)', content):
+              cat_counts.append(f"{m.group(1)} {m.group(2)}")
+
+          fields = []
+          if source_lines:
+              fields.append({
+                  'name': 'By Source',
+                  'value': '\n'.join(source_lines),
+                  'inline': True
+              })
+          if cat_counts:
+              fields.append({
+                  'name': 'By Category',
+                  'value': '\n'.join(cat_counts),
+                  'inline': True
+              })
+
+          payload = {
+              'username': '🎵 GA',
+              'embeds': [{
+                  'title': f'GA Daily — {report_date}',
+                  'color': 0x00AA66,
+                  'description': f'**{total}** new items — [📄 View full report]({report_link})',
+                  'fields': fields,
+                  'footer': {'text': 'GA · NGMC (resent)'},
+                  'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+              }]
+          }
+
+          with open('/tmp/discord-payload.json', 'w') as f:
+              json.dump(payload, f)
+          print(f"Payload built: {total} items from {report_date}")
+          EOF
+
+          curl -sS -f -X POST "${DISCORD_WEBHOOK_URL}" \
+            -H "Content-Type: application/json" \
+            -d @/tmp/discord-payload.json && echo "Sent OK"
