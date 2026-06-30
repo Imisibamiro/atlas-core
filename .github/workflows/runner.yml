@@ -296,11 +296,18 @@ jobs:
               summary: $summary
             }')
 
-          curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
+          # Broker report is best-effort: a non-2xx from the broker must NOT mark the
+          # job failed when the actual work succeeded. Capture status and warn instead.
+          REPORT_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
             -H "Authorization: Bearer ${REPORT_OIDC_TOKEN}" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d "${REPORT_BODY}" >/dev/null
+            -d "${REPORT_BODY}" || echo "000")
+          if [ "${REPORT_STATUS}" -ge 200 ] && [ "${REPORT_STATUS}" -lt 300 ]; then
+            echo "Broker report accepted (HTTP ${REPORT_STATUS})"
+          else
+            echo "::warning::Broker report rejected (HTTP ${REPORT_STATUS}); not failing the job"
+          fi
 
   recalculate:
     if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
@@ -766,59 +773,100 @@ jobs:
         if: env.RUNNER_DRY_RUN != 'true'
         id: recalc
         env:
-          CLOUDFLARE_CHART_API_URL: ""
-          CLOUDFLARE_CHART_API_REFRESH_TOKEN: ""
-          CLOUDFLARE_ADMIN_API_TIMEOUT_MS: "3600000"
-          CLOUDFLARE_RECALC_UPDATE_CONCURRENCY: "30"
+          CLOUDFLARE_RECALC_MAX_POLLS: "240"
+          CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS: "15"
         run: |
           set -euo pipefail
-          # Export chart API credentials from runner keys
+          # Queue the recalc on chart-api (chunked, D1-binding-direct) and poll for completion.
+          # This replaces the in-runner per-row recalc that overwhelmed D1 with concurrent UPDATEs
+          # (D1 is single-threaded per database; "Requests queued for too long" is the symptom).
+          CHART_URL=""
+          CHART_TOKEN=""
           if [ -f "${RUNNER_KEY_FILE}" ]; then
             CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
             CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
-            if [ -n "${CHART_URL}" ]; then
-              export CLOUDFLARE_CHART_API_URL="${CHART_URL}"
-              echo "CLOUDFLARE_CHART_API_URL=${CHART_URL}" >> "${GITHUB_ENV}"
-            fi
-            if [ -n "${CHART_TOKEN}" ]; then
-              export CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CHART_TOKEN}"
-              echo "::add-mask::${CHART_TOKEN}"
-            fi
           fi
-          cat > .runner-bundle/tsconfig.runner.json <<'JSON'
-          {
-            "compilerOptions": {
-              "target": "ES2022",
-              "baseUrl": ".",
-              "module": "esnext",
-              "moduleResolution": "bundler",
-              "allowJs": true,
-              "allowImportingTsExtensions": true,
-              "esModuleInterop": true,
-              "resolveJsonModule": true,
-              "skipLibCheck": true,
-              "paths": {
-                "@/*": ["./src/*"]
-              }
-            },
-            "include": [
-              "src/**/*.ts",
-              "src/**/*.tsx",
-              "src/**/*.mts",
-              "src/**/*.js",
-              "scripts/**/*.ts",
-              "scripts/**/*.mts",
-              "scripts/**/*.js"
-            ],
-            "exclude": ["node_modules"]
-          }
-          JSON
-          RECALC_EXIT=0
-          npx tsx --tsconfig .runner-bundle/tsconfig.runner.json .runner-bundle/scripts/recalculate-live-chart.ts | tee /tmp/recalc-output.jsonl || RECALC_EXIT=$?
-          echo "recalc_exit=${RECALC_EXIT}" >> "${GITHUB_OUTPUT}"
-          if [ "${RECALC_EXIT}" -ne 0 ]; then
-            echo "::warning::Recalculation exited with code ${RECALC_EXIT} — Cloudflare finalizer will attempt it as fallback"
+          if [ -z "${CHART_URL}" ]; then
+            echo "::error::Chart API URL not available from runner keys"
+            echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
+            exit 1
           fi
+          if [ -n "${CHART_TOKEN}" ]; then
+            echo "::add-mask::${CHART_TOKEN}"
+          fi
+
+          QUEUE_RESPONSE=$(curl -sS -f -X POST "${CHART_URL%/}/v1/admin/jobs/recalculate-live-chart" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          JOB_ID=$(echo "${QUEUE_RESPONSE}" | jq -r '.jobId // ""')
+          if [ -z "${JOB_ID}" ]; then
+            echo "::error::Failed to queue recalculation: ${QUEUE_RESPONSE}"
+            echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
+            exit 1
+          fi
+          echo "Recalculation queued: ${JOB_ID}"
+          echo "job_id=${JOB_ID}" >> "${GITHUB_OUTPUT}"
+
+          MAX_POLLS="${CLOUDFLARE_RECALC_MAX_POLLS:-240}"
+          POLL_INTERVAL="${CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS:-15}"
+          LAST_STATUS="queued"
+          LAST_TOTAL_CHUNKS=0
+          LAST_COMPLETED_CHUNKS=0
+          LAST_FAILED_CHUNKS=0
+          STARTED_AT=$(date -u +%s)
+
+          for i in $(seq 1 "${MAX_POLLS}"); do
+            sleep "${POLL_INTERVAL}"
+            STATUS_RESPONSE=$(curl -sS "${CHART_URL%/}/v1/admin/jobs/${JOB_ID}/status" \
+              -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{"status":"unknown"}')
+            STATUS=$(echo "${STATUS_RESPONSE}" | jq -r '.job.status // .status // "unknown"' 2>/dev/null || echo "unknown")
+            TOTAL_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.totalChunks // .job.result.summary.total_chunks // .job.total_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
+            COMPLETED_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.completedChunks // .job.result.summary.completed_chunks // .job.completed_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
+            FAILED_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.failedChunks // .job.result.summary.failed_chunks // .job.failed_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
+            LAST_STATUS="${STATUS}"
+            LAST_TOTAL_CHUNKS="${TOTAL_CHUNKS}"
+            LAST_COMPLETED_CHUNKS="${COMPLETED_CHUNKS}"
+            LAST_FAILED_CHUNKS="${FAILED_CHUNKS}"
+            echo "Poll ${i}/${MAX_POLLS}: status=${STATUS}; chunks=${COMPLETED_CHUNKS}/${TOTAL_CHUNKS}; failed=${FAILED_CHUNKS}"
+
+            if [ "${STATUS}" = "failed" ] || [ "${STATUS}" = "error" ] || [ "${STATUS}" = "errored" ] || [ "${STATUS}" = "cancelled" ]; then
+              echo "::error::Cloudflare recalculation job failed: $(echo "${STATUS_RESPONSE}" | jq -r '.job.error // .error // "unknown"')"
+              echo "{\"ok\":false,\"stage\":\"error\",\"jobId\":\"${JOB_ID}\",\"status\":\"${STATUS}\"}" >> /tmp/recalc-output.jsonl
+              echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
+              exit 1
+            fi
+
+            if [ "${STATUS}" = "completed" ] || [ "${STATUS}" = "success" ] || [ "${STATUS}" = "succeeded" ]; then
+              if [ "${FAILED_CHUNKS}" -gt 0 ] || { [ "${TOTAL_CHUNKS}" -gt 0 ] && [ "${COMPLETED_CHUNKS}" -lt "${TOTAL_CHUNKS}" ]; }; then
+                echo "Cloudflare reported a terminal status before chunk completion; continuing to wait."
+                continue
+              fi
+
+              # Verify chart freshness before declaring victory (mirrors the recalculate job).
+              CHART_STATUS=$(curl -sS "${CHART_URL%/}/v1/admin/chart-status" \
+                -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{}')
+              LAST_DATA=$(echo "${CHART_STATUS}" | jq -r '.lastDataUpdate // ""')
+              LAST_SCORE=$(echo "${CHART_STATUS}" | jq -r '.lastScoreRefresh // ""')
+              HAS_STALE=$(echo "${CHART_STATUS}" | jq -r '.hasStaleScores // true')
+              STALE_COUNT=$(echo "${CHART_STATUS}" | jq -r '.staleTrackCount // 0')
+              if [ -n "${LAST_DATA}" ] && [ -n "${LAST_SCORE}" ] \
+                && { [ "${LAST_SCORE}" = "${LAST_DATA}" ] || [[ "${LAST_SCORE}" > "${LAST_DATA}" ]]; } \
+                && [ "${HAS_STALE}" != "true" ] && [ "${STALE_COUNT}" -eq 0 ]; then
+                ELAPSED=$(($(date -u +%s) - STARTED_AT))
+                echo "Recalculation completed; chart preview is materialised. Elapsed=${ELAPSED}s"
+                echo "{\"ok\":true,\"stage\":\"complete\",\"jobId\":\"${JOB_ID}\",\"totalChunks\":${TOTAL_CHUNKS},\"completedChunks\":${COMPLETED_CHUNKS},\"failedChunks\":${FAILED_CHUNKS},\"elapsedSec\":${ELAPSED},\"status\":\"${STATUS}\"}" >> /tmp/recalc-output.jsonl
+                echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
+                exit 0
+              fi
+              echo "Cloudflare job succeeded but fresh score/preview state is not visible yet; continuing to wait."
+            fi
+          done
+
+          echo "::error::Recalculation job ${JOB_ID} did not complete within $((MAX_POLLS * POLL_INTERVAL)) seconds. Final status=${LAST_STATUS}; chunks=${LAST_COMPLETED_CHUNKS}/${LAST_TOTAL_CHUNKS}; failed=${LAST_FAILED_CHUNKS}."
+          echo "{\"ok\":false,\"stage\":\"timeout\",\"jobId\":\"${JOB_ID}\",\"status\":\"${LAST_STATUS}\"}" >> /tmp/recalc-output.jsonl
+          echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
+          exit 1
 
       - name: Write refresh report
         if: always() && steps.recalc.outcome != 'skipped'
@@ -901,9 +949,16 @@ jobs:
                 })
               }')
 
-            curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
+            # Broker report is best-effort: a non-2xx must NOT fail the workflow when
+            # the recalc itself succeeded. Capture status and warn on rejection.
+            REPORT_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
               -H "Authorization: Bearer ${REPORT_OIDC_TOKEN}" \
               -H "Content-Type: application/json" \
               -H "Accept: application/json" \
-              -d "${REPORT_BODY}" >/dev/null
+              -d "${REPORT_BODY}" || echo "000")
+            if [ "${REPORT_STATUS}" -ge 200 ] && [ "${REPORT_STATUS}" -lt 300 ]; then
+              echo "Broker report accepted (HTTP ${REPORT_STATUS})"
+            else
+              echo "::warning::Broker report rejected (HTTP ${REPORT_STATUS}); not failing the job (recalc_exit=${RECALC_EXIT})"
+            fi
           fi
