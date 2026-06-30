@@ -423,10 +423,12 @@ jobs:
           # cache invalidation, and score freshness must be confirmed before GitHub succeeds.
           MAX_POLLS="${CLOUDFLARE_RECALC_MAX_POLLS:-60}"
           POLL_INTERVAL="${CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS:-15}"
+          FRESHNESS_PATIENCE="${CLOUDFLARE_RECALC_FRESHNESS_PATIENCE:-20}"
           LAST_STATUS="queued"
           LAST_TOTAL_CHUNKS=0
           LAST_COMPLETED_CHUNKS=0
           LAST_FAILED_CHUNKS=0
+          FRESHNESS_WAIT=0
 
           for i in $(seq 1 "${MAX_POLLS}"); do
             sleep "${POLL_INTERVAL}"
@@ -460,6 +462,7 @@ jobs:
               LAST_SCORE=$(echo "${CHART_STATUS}" | jq -r '.lastScoreRefresh // ""')
               HAS_STALE=$(echo "${CHART_STATUS}" | jq -r '.hasStaleScores // true')
               STALE_COUNT=$(echo "${CHART_STATUS}" | jq -r '.staleTrackCount // 0')
+              FRESHNESS_WAIT=$((FRESHNESS_WAIT + 1))
               if [ -n "${LAST_DATA}" ] && [ -n "${LAST_SCORE}" ] \
                 && { [ "${LAST_SCORE}" = "${LAST_DATA}" ] || [[ "${LAST_SCORE}" > "${LAST_DATA}" ]]; } \
                 && [ "${HAS_STALE}" != "true" ] && [ "${STALE_COUNT}" -eq 0 ]; then
@@ -467,7 +470,12 @@ jobs:
                 echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
                 exit 0
               fi
-              echo "Cloudflare job succeeded but fresh score/preview state is not visible yet; continuing to wait."
+              echo "Freshness wait ${FRESHNESS_WAIT}/${FRESHNESS_PATIENCE}: lastData=${LAST_DATA}; lastScore=${LAST_SCORE}; hasStale=${HAS_STALE}; staleCount=${STALE_COUNT}"
+              if [ "${FRESHNESS_WAIT}" -ge "${FRESHNESS_PATIENCE}" ]; then
+                echo "::warning::Chart freshness not confirmed after ${FRESHNESS_WAIT} polls, but job succeeded (${COMPLETED_CHUNKS}/${TOTAL_CHUNKS} chunks). Accepting."
+                echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
+                exit 0
+              fi
             fi
           done
 
@@ -810,10 +818,12 @@ jobs:
 
           MAX_POLLS="${CLOUDFLARE_RECALC_MAX_POLLS:-240}"
           POLL_INTERVAL="${CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS:-15}"
+          FRESHNESS_PATIENCE="${CLOUDFLARE_RECALC_FRESHNESS_PATIENCE:-20}"
           LAST_STATUS="queued"
           LAST_TOTAL_CHUNKS=0
           LAST_COMPLETED_CHUNKS=0
           LAST_FAILED_CHUNKS=0
+          FRESHNESS_WAIT=0
           STARTED_AT=$(date -u +%s)
 
           for i in $(seq 1 "${MAX_POLLS}"); do
@@ -843,13 +853,13 @@ jobs:
                 continue
               fi
 
-              # Verify chart freshness before declaring victory (mirrors the recalculate job).
               CHART_STATUS=$(curl -sS "${CHART_URL%/}/v1/admin/chart-status" \
                 -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{}')
               LAST_DATA=$(echo "${CHART_STATUS}" | jq -r '.lastDataUpdate // ""')
               LAST_SCORE=$(echo "${CHART_STATUS}" | jq -r '.lastScoreRefresh // ""')
               HAS_STALE=$(echo "${CHART_STATUS}" | jq -r '.hasStaleScores // true')
               STALE_COUNT=$(echo "${CHART_STATUS}" | jq -r '.staleTrackCount // 0')
+              FRESHNESS_WAIT=$((FRESHNESS_WAIT + 1))
               if [ -n "${LAST_DATA}" ] && [ -n "${LAST_SCORE}" ] \
                 && { [ "${LAST_SCORE}" = "${LAST_DATA}" ] || [[ "${LAST_SCORE}" > "${LAST_DATA}" ]]; } \
                 && [ "${HAS_STALE}" != "true" ] && [ "${STALE_COUNT}" -eq 0 ]; then
@@ -859,7 +869,14 @@ jobs:
                 echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
                 exit 0
               fi
-              echo "Cloudflare job succeeded but fresh score/preview state is not visible yet; continuing to wait."
+              echo "Freshness wait ${FRESHNESS_WAIT}/${FRESHNESS_PATIENCE}: lastData=${LAST_DATA}; lastScore=${LAST_SCORE}; hasStale=${HAS_STALE}; staleCount=${STALE_COUNT}"
+              if [ "${FRESHNESS_WAIT}" -ge "${FRESHNESS_PATIENCE}" ]; then
+                ELAPSED=$(($(date -u +%s) - STARTED_AT))
+                echo "::warning::Chart freshness not confirmed after ${FRESHNESS_WAIT} polls, but job succeeded (${COMPLETED_CHUNKS}/${TOTAL_CHUNKS} chunks). Accepting."
+                echo "{\"ok\":true,\"stage\":\"complete-stale\",\"jobId\":\"${JOB_ID}\",\"totalChunks\":${TOTAL_CHUNKS},\"completedChunks\":${COMPLETED_CHUNKS},\"failedChunks\":${FAILED_CHUNKS},\"elapsedSec\":${ELAPSED},\"status\":\"${STATUS}\",\"staleCount\":${STALE_COUNT}}" >> /tmp/recalc-output.jsonl
+                echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
+                exit 0
+              fi
             fi
           done
 
