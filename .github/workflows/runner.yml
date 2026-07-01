@@ -388,7 +388,7 @@ jobs:
       - name: Recalculate live chart
         id: recalc
         env:
-          CLOUDFLARE_RECALC_MAX_POLLS: "60"
+          CLOUDFLARE_RECALC_MAX_POLLS: "240"
           CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS: "15"
         run: |
           set -euo pipefail
