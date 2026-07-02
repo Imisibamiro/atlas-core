@@ -10,6 +10,10 @@ const brokeredEnv = loadBrokeredEnv();
 const runnerDefaults = {
   DEEZER_READONLY_REFRESH_CONCURRENCY: "2",
   DEEZER_API_MIN_INTERVAL_MS: "300",
+  // Give Cloudflare-backed refresh jobs more breathing room under transient load.
+  OFFICIAL_VIDEO_REFRESH_CONCURRENCY: "1",
+  CLOUDFLARE_NATIVE_RETRY_MAX_ATTEMPTS: "8",
+  CLOUDFLARE_NATIVE_RETRY_BASE_DELAY_MS: "750",
 };
 
 console.log(JSON.stringify({
