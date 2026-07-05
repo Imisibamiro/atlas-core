@@ -638,7 +638,6 @@ jobs:
     timeout-minutes: 300
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         part: [p1, p2, p3, p4, p5]
     env:
@@ -652,6 +651,9 @@ jobs:
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       RUNNER_TIMEOUT_MS: "17400000"
+      SCRAPER_DB_TARGET: supabase
+      NGMC_CORE_READ_TARGET: supabase
+      NGMC_CORE_WRITE_TARGET: supabase
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
@@ -791,6 +793,9 @@ jobs:
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       PROVIDER_FANOUT_RESULT: ${{ needs.provider-fanout.result || 'manual' }}
+      SCRAPER_DB_TARGET: supabase
+      NGMC_CORE_READ_TARGET: supabase
+      NGMC_CORE_WRITE_TARGET: supabase
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
