@@ -6,6 +6,7 @@ import path from "node:path";
 
 const job = String(process.env.RUNNER_JOB || "").trim();
 const bundleDir = path.resolve(process.env.RUNNER_BUNDLE_DIR || ".runner-bundle");
+const runnerTimeoutMs = readPositiveIntegerEnv("RUNNER_TIMEOUT_MS", 3 * 60 * 60 * 1000);
 const brokeredEnv = loadBrokeredEnv();
 const runnerDefaults = {
   DEEZER_READONLY_REFRESH_CONCURRENCY: "2",
@@ -48,7 +49,7 @@ for (const [command, args] of candidates) {
     cwd: bundleDir,
     env: { ...runnerDefaults, ...process.env, ...brokeredEnv, RUNNER_JOB: job, NGMC_JOB_KIND: job },
     stdio: "inherit",
-    timeout: 3 * 60 * 60 * 1000,
+    timeout: runnerTimeoutMs,
   });
   process.exit(result.status ?? 1);
 }
@@ -80,4 +81,15 @@ function loadBrokeredEnv() {
   return Object.fromEntries(
     Object.entries(parsed).map(([key, value]) => [key, value == null ? "" : String(value)])
   );
+}
+
+function readPositiveIntegerEnv(name, fallback) {
+  const raw = String(process.env[name] || "").trim();
+  if (!raw) return fallback;
+
+  const value = Number(raw);
+  if (Number.isSafeInteger(value) && value > 0) return value;
+
+  console.error(`${name} must be a positive integer, got: ${raw}`);
+  process.exit(1);
 }
