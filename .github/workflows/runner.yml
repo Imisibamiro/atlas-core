@@ -431,15 +431,14 @@ jobs:
         id: recalc_dump
         run: |
           set -euo pipefail
-          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
-          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
+          SUPABASE_POSTGRES_URL=$(jq -r '.SUPABASE_POSTGRES_URL // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${SUPABASE_POSTGRES_URL}" ]; then
+            echo "::error::SUPABASE_POSTGRES_URL missing from runner keys"
             exit 1
           fi
-          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          echo "::add-mask::${SUPABASE_POSTGRES_URL}"
           mkdir -p .runner-artifacts/recalc-snapshot
-          SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+          SUPABASE_POSTGRES_URL="${SUPABASE_POSTGRES_URL}" \
             node .runner-bundle/scripts/dump-recalc-inputs-snapshot.mjs .runner-artifacts/recalc-snapshot
           echo "SNAPSHOT_DIR=${GITHUB_WORKSPACE}/.runner-artifacts/recalc-snapshot" >> "${GITHUB_ENV}"
 
@@ -597,15 +596,14 @@ jobs:
         if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
         run: |
           set -euo pipefail
-          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
-          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys — cannot dump tracks snapshot"
+          SUPABASE_POSTGRES_URL=$(jq -r '.SUPABASE_POSTGRES_URL // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${SUPABASE_POSTGRES_URL}" ]; then
+            echo "::error::SUPABASE_POSTGRES_URL missing from runner keys — cannot dump tracks snapshot"
             exit 1
           fi
-          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          echo "::add-mask::${SUPABASE_POSTGRES_URL}"
           mkdir -p .runner-artifacts
-          SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+          SUPABASE_POSTGRES_URL="${SUPABASE_POSTGRES_URL}" \
             node .runner-bundle/scripts/dump-tracks-snapshot.mjs .runner-artifacts/tracks-snapshot.json
 
       - name: Upload tracks snapshot artifact
@@ -907,15 +905,14 @@ jobs:
         id: recalc_dump
         run: |
           set -euo pipefail
-          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
-          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
+          SUPABASE_POSTGRES_URL=$(jq -r '.SUPABASE_POSTGRES_URL // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${SUPABASE_POSTGRES_URL}" ]; then
+            echo "::error::SUPABASE_POSTGRES_URL missing from runner keys"
             exit 1
           fi
-          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          echo "::add-mask::${SUPABASE_POSTGRES_URL}"
           mkdir -p .runner-artifacts/recalc-snapshot
-          SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+          SUPABASE_POSTGRES_URL="${SUPABASE_POSTGRES_URL}" \
             node .runner-bundle/scripts/dump-recalc-inputs-snapshot.mjs .runner-artifacts/recalc-snapshot
           # Export the snapshot dir as an absolute path for the next step.
           echo "SNAPSHOT_DIR=${GITHUB_WORKSPACE}/.runner-artifacts/recalc-snapshot" >> "${GITHUB_ENV}"
