@@ -424,52 +424,41 @@ jobs:
             npm install --omit=dev --prefix .runner-bundle
           fi
 
-      # Same "dump snapshot then run engine locally" flow as finalize-fanout.
-      # Compute stays on the GH runner; Supabase only sees one bulk read at
-      # the start and the recalc's write batch at the end.
-      - name: Dump recalc inputs snapshot
-        id: recalc_dump
-        run: |
-          set -euo pipefail
-          SUPABASE_POSTGRES_URL=$(jq -r '.SUPABASE_POSTGRES_URL // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_POSTGRES_URL}" ]; then
-            echo "::error::SUPABASE_POSTGRES_URL missing from runner keys"
-            exit 1
-          fi
-          echo "::add-mask::${SUPABASE_POSTGRES_URL}"
-          mkdir -p .runner-artifacts/recalc-snapshot
-          SUPABASE_POSTGRES_URL="${SUPABASE_POSTGRES_URL}" \
-            node .runner-bundle/scripts/dump-recalc-inputs-snapshot.mjs .runner-artifacts/recalc-snapshot
-          echo "SNAPSHOT_DIR=${GITHUB_WORKSPACE}/.runner-artifacts/recalc-snapshot" >> "${GITHUB_ENV}"
-
+      # Recalc COMPUTE runs on the Supabase Edge Function (colocated with
+      # Postgres — no cross-region snapshot dump). run-cloudflare-end-bits.mjs
+      # drains any pending snapshot queue, POSTs /v1/admin/jobs/recalculate-live-chart
+      # to the Cloudflare Worker (which routes to the Edge Function when
+      # NGMC_RECALC_ON_EDGE=true), polls the admin job to completion, and
+      # verifies score freshness. Identical path to NGMC/scraper.yml.
       - name: Recalculate live chart
         id: recalc
+        env:
+          SNAPSHOT_QUEUE_NATIVE_BATCH_LIMIT: '1000'
+          SNAPSHOT_QUEUE_NATIVE_MAX_ROUNDS: '6'
+          CLOUDFLARE_RECALC_WAIT_TIMEOUT_MS: '900000'
+          CLOUDFLARE_RECALC_WAIT_POLL_MS: '15000'
         run: |
           set -euo pipefail
-          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
-          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
+          CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
+            echo "::error::CLOUDFLARE_CHART_API_URL or CLOUDFLARE_CHART_API_REFRESH_TOKEN missing from runner keys"
             echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
             exit 1
           fi
-          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
 
           STARTED_AT=$(date -u +%s)
           set +e
-          (
-            cd .runner-bundle
-            SUPABASE_URL="${SUPABASE_URL}" \
-              SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
-              NGMC_RECALC_SNAPSHOT_DIR="${SNAPSHOT_DIR}" \
-              node --import tsx scripts/run-recalc-live-chart.ts
-          ) | tee /tmp/recalc-log.txt
+          CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
+            CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+            node .runner-bundle/scripts/run-cloudflare-end-bits.mjs | tee /tmp/recalc-log.txt
           RECALC_EXIT_CODE=${PIPESTATUS[0]}
           set -e
           ELAPSED=$(($(date -u +%s) - STARTED_AT))
 
           if [ "${RECALC_EXIT_CODE}" -eq 0 ]; then
-            echo "Recalc completed in ${ELAPSED}s (GH runner, snapshot + fetch intercept)."
+            echo "Recalc completed in ${ELAPSED}s (Cloudflare Worker → Supabase Edge Function)."
             echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
@@ -894,64 +883,44 @@ jobs:
       - name: Finalize fanout
         run: node scripts/run.mjs
 
-      # Dump every table the recalc engine reads to a local snapshot dir. The
-      # runner then serves those reads from memory via a fetch intercept in
-      # run-recalc-live-chart.ts — so the engine's compute happens entirely on
-      # the GH runner and only its WRITES touch Supabase. This is the read half
-      # of the "GH does the heavy compute, Supabase only sees the result" model
-      # (fanout provider parts already use the same pattern for `tracks`).
-      - name: Dump recalc inputs snapshot
-        if: env.RUNNER_DRY_RUN != 'true'
-        id: recalc_dump
-        run: |
-          set -euo pipefail
-          SUPABASE_POSTGRES_URL=$(jq -r '.SUPABASE_POSTGRES_URL // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_POSTGRES_URL}" ]; then
-            echo "::error::SUPABASE_POSTGRES_URL missing from runner keys"
-            exit 1
-          fi
-          echo "::add-mask::${SUPABASE_POSTGRES_URL}"
-          mkdir -p .runner-artifacts/recalc-snapshot
-          SUPABASE_POSTGRES_URL="${SUPABASE_POSTGRES_URL}" \
-            node .runner-bundle/scripts/dump-recalc-inputs-snapshot.mjs .runner-artifacts/recalc-snapshot
-          # Export the snapshot dir as an absolute path for the next step.
-          echo "SNAPSHOT_DIR=${GITHUB_WORKSPACE}/.runner-artifacts/recalc-snapshot" >> "${GITHUB_ENV}"
-
+      # Recalc COMPUTE runs on the Supabase Edge Function (colocated with
+      # Postgres — no cross-region snapshot dump). Provider parts have already
+      # written their data to Supabase; run-cloudflare-end-bits.mjs drains any
+      # pending snapshot queue, POSTs /v1/admin/jobs/recalculate-live-chart to
+      # the Cloudflare Worker (which routes to the Edge Function when
+      # NGMC_RECALC_ON_EDGE=true), polls the admin job to completion, and
+      # verifies score freshness. Identical path to NGMC/scraper.yml.
       - name: Recalculate live chart
         if: env.RUNNER_DRY_RUN != 'true'
         id: recalc
+        env:
+          SNAPSHOT_QUEUE_NATIVE_BATCH_LIMIT: '1000'
+          SNAPSHOT_QUEUE_NATIVE_MAX_ROUNDS: '6'
+          CLOUDFLARE_RECALC_WAIT_TIMEOUT_MS: '900000'
+          CLOUDFLARE_RECALC_WAIT_POLL_MS: '15000'
         run: |
           set -euo pipefail
-          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
-          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
+          CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
+            echo "::error::CLOUDFLARE_CHART_API_URL or CLOUDFLARE_CHART_API_REFRESH_TOKEN missing from runner keys"
             echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
             echo "{\"ok\":false,\"stage\":\"missing_env\"}" > /tmp/recalc-output.jsonl
             exit 1
           fi
-          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
 
           STARTED_AT=$(date -u +%s)
           set +e
-          # cd into the bundle so `node --import tsx` resolves tsx from the
-          # bundle's node_modules (same convention as scripts/run.mjs uses via
-          # cwd: bundleDir for the provider parts). NGMC_RECALC_SNAPSHOT_DIR
-          # is what the fetch intercept looks for; without it the script
-          # refuses to run (won't silently fall through to live Supabase reads).
-          (
-            cd .runner-bundle
-            SUPABASE_URL="${SUPABASE_URL}" \
-              SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
-              NGMC_RECALC_SNAPSHOT_DIR="${SNAPSHOT_DIR}" \
-              node --import tsx scripts/run-recalc-live-chart.ts
-          ) | tee /tmp/recalc-log.txt
+          CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
+            CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+            node .runner-bundle/scripts/run-cloudflare-end-bits.mjs | tee /tmp/recalc-log.txt
           RECALC_EXIT_CODE=${PIPESTATUS[0]}
           set -e
           ELAPSED=$(($(date -u +%s) - STARTED_AT))
 
           if [ "${RECALC_EXIT_CODE}" -eq 0 ]; then
-            echo "Recalc completed in ${ELAPSED}s (GH runner, direct engine)."
+            echo "Recalc completed in ${ELAPSED}s (Cloudflare Worker → Supabase Edge Function)."
             echo "{\"ok\":true,\"stage\":\"complete\",\"elapsedSec\":${ELAPSED}}" > /tmp/recalc-output.jsonl
             echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
             exit 0
