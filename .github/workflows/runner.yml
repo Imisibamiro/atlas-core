@@ -424,41 +424,45 @@ jobs:
             npm install --omit=dev --prefix .runner-bundle
           fi
 
-      # Recalc COMPUTE runs on the Supabase Edge Function (colocated with
-      # Postgres — no cross-region snapshot dump). run-cloudflare-end-bits.mjs
-      # drains any pending snapshot queue, POSTs /v1/admin/jobs/recalculate-live-chart
-      # to the Cloudflare Worker (which routes to the Edge Function when
-      # NGMC_RECALC_ON_EDGE=true), polls the admin job to completion, and
-      # verifies score freshness. Identical path to NGMC/scraper.yml.
+      # Runner-side recalc — same script + shape as NGMC/scraper.yml has run
+      # daily for 3+ months. No dump; reads/writes go live to Supabase via
+      # createRoutingCoreClient() when RECALC_DB_TARGET=supabase. No Edge
+      # Function involvement, so the 150s free-tier idle-timeout doesn't
+      # apply — the runner has a 120min job cap and prints a heartbeat every
+      # 15s so GH streaming stays alive.
       - name: Recalculate live chart
         id: recalc
-        env:
-          SNAPSHOT_QUEUE_NATIVE_BATCH_LIMIT: '1000'
-          SNAPSHOT_QUEUE_NATIVE_MAX_ROUNDS: '6'
-          CLOUDFLARE_RECALC_WAIT_TIMEOUT_MS: '900000'
-          CLOUDFLARE_RECALC_WAIT_POLL_MS: '15000'
         run: |
           set -euo pipefail
+          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
+          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
-            echo "::error::CLOUDFLARE_CHART_API_URL or CLOUDFLARE_CHART_API_REFRESH_TOKEN missing from runner keys"
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
             echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
             exit 1
           fi
-          echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
+          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          [ -n "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ] && echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
 
           STARTED_AT=$(date -u +%s)
           set +e
-          CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
-            CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
-            node .runner-bundle/scripts/run-cloudflare-end-bits.mjs | tee /tmp/recalc-log.txt
+          (
+            cd .runner-bundle
+            RECALC_DB_TARGET=supabase \
+              SUPABASE_URL="${SUPABASE_URL}" \
+              SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+              CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
+              CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+              node --import tsx scripts/recalculate-live-chart.ts
+          ) | tee /tmp/recalc-log.txt
           RECALC_EXIT_CODE=${PIPESTATUS[0]}
           set -e
           ELAPSED=$(($(date -u +%s) - STARTED_AT))
 
           if [ "${RECALC_EXIT_CODE}" -eq 0 ]; then
-            echo "Recalc completed in ${ELAPSED}s (Cloudflare Worker → Supabase Edge Function)."
+            echo "Recalc completed in ${ELAPSED}s (runner-side, Supabase routing client)."
             echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
@@ -883,45 +887,75 @@ jobs:
       - name: Finalize fanout
         run: node scripts/run.mjs
 
-      # Recalc COMPUTE runs on the Supabase Edge Function (colocated with
-      # Postgres — no cross-region snapshot dump). Provider parts have already
-      # written their data to Supabase; run-cloudflare-end-bits.mjs drains any
-      # pending snapshot queue, POSTs /v1/admin/jobs/recalculate-live-chart to
-      # the Cloudflare Worker (which routes to the Edge Function when
-      # NGMC_RECALC_ON_EDGE=true), polls the admin job to completion, and
-      # verifies score freshness. Identical path to NGMC/scraper.yml.
-      - name: Recalculate live chart
+      # Runner-side finalize — matches NGMC/scraper.yml daily pattern (3+ months
+      # in production). Two steps: drain any pending snapshot writes from the CF
+      # admin-jobs queue, then run the recalc engine on the runner reading/
+      # writing Supabase via createRoutingCoreClient(). No dump; no 150s Edge
+      # ceiling — the runner has a 120min job cap and the script heartbeats
+      # every 15s.
+      - name: Process snapshot queue
         if: env.RUNNER_DRY_RUN != 'true'
-        id: recalc
-        env:
-          SNAPSHOT_QUEUE_NATIVE_BATCH_LIMIT: '1000'
-          SNAPSHOT_QUEUE_NATIVE_MAX_ROUNDS: '6'
-          CLOUDFLARE_RECALC_WAIT_TIMEOUT_MS: '900000'
-          CLOUDFLARE_RECALC_WAIT_POLL_MS: '15000'
         run: |
           set -euo pipefail
           CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
           if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
             echo "::error::CLOUDFLARE_CHART_API_URL or CLOUDFLARE_CHART_API_REFRESH_TOKEN missing from runner keys"
+            exit 1
+          fi
+          echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
+          (
+            cd .runner-bundle
+            CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
+              CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+              node --import tsx scripts/process-snapshot-write-queue.ts
+          )
+
+      - name: Recalculate live chart
+        if: env.RUNNER_DRY_RUN != 'true'
+        id: recalc
+        run: |
+          set -euo pipefail
+          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
+          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
+          CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
             echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
             echo "{\"ok\":false,\"stage\":\"missing_env\"}" > /tmp/recalc-output.jsonl
             exit 1
           fi
-          echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
+          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          [ -n "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ] && echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
 
           STARTED_AT=$(date -u +%s)
           set +e
-          CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
-            CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
-            node .runner-bundle/scripts/run-cloudflare-end-bits.mjs | tee /tmp/recalc-log.txt
+          (
+            cd .runner-bundle
+            RECALC_DB_TARGET=supabase \
+              SUPABASE_URL="${SUPABASE_URL}" \
+              SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+              CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
+              CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+              node --import tsx scripts/recalculate-live-chart.ts
+          ) | tee /tmp/recalc-log.txt
           RECALC_EXIT_CODE=${PIPESTATUS[0]}
           set -e
           ELAPSED=$(($(date -u +%s) - STARTED_AT))
 
+          # Persist the final "complete" JSON line for the report step. The
+          # script prints a multi-line pretty JSON on success; join lines and
+          # extract with jq so downstream still sees {"ok":true,...}.
           if [ "${RECALC_EXIT_CODE}" -eq 0 ]; then
-            echo "Recalc completed in ${ELAPSED}s (Cloudflare Worker → Supabase Edge Function)."
-            echo "{\"ok\":true,\"stage\":\"complete\",\"elapsedSec\":${ELAPSED}}" > /tmp/recalc-output.jsonl
+            RECALC_JSON=$(tr -d '\n' < /tmp/recalc-log.txt | grep -oE '\{"ok":true,"stage":"complete"[^}]*\}' | tail -1 || true)
+            if [ -z "${RECALC_JSON}" ]; then
+              # Fallback: the pretty-printed complete block. Slurp with jq.
+              RECALC_JSON=$(jq -Rs 'capture("(?<obj>\\{\\s*\"ok\":\\s*true[\\s\\S]*?\"stage\":\\s*\"complete\"[\\s\\S]*?\\})") | .obj | fromjson | tojson' /tmp/recalc-log.txt 2>/dev/null || echo "")
+            fi
+            [ -z "${RECALC_JSON}" ] && RECALC_JSON="{\"ok\":true,\"stage\":\"complete\",\"elapsedSec\":${ELAPSED}}"
+            echo "Recalc completed in ${ELAPSED}s (runner-side, Supabase routing client)."
+            echo "${RECALC_JSON}" > /tmp/recalc-output.jsonl
             echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
