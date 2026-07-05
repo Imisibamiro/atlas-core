@@ -638,7 +638,6 @@ jobs:
     timeout-minutes: 300
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         part: [p1, p2, p3, p4, p5]
     env:
