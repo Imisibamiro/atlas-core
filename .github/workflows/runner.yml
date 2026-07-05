@@ -631,6 +631,36 @@ jobs:
         id: start
         run: node scripts/run.mjs
 
+      # Fanout parts run in parallel (matrix p1..p5). Each of them used to hit
+      # Supabase for the full `tracks` table on startup — 5 concurrent wide
+      # selects overwhelmed the compute tier and produced "canceling statement
+      # due to statement timeout" (see runs 28742512783, 28743075339, 28744707414
+      # on 2026-07-05). We dump the table ONCE here and each provider part
+      # downloads the artifact instead of re-fetching.
+      - name: Dump tracks snapshot
+        if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
+        run: |
+          set -euo pipefail
+          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
+          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys — cannot dump tracks snapshot"
+            exit 1
+          fi
+          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          mkdir -p .runner-artifacts
+          SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+            node .runner-bundle/scripts/dump-tracks-snapshot.mjs .runner-artifacts/tracks-snapshot.json
+
+      - name: Upload tracks snapshot artifact
+        if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracks-snapshot-${{ github.run_id }}
+          path: .runner-artifacts/tracks-snapshot.json
+          retention-days: 1
+          if-no-files-found: error
+
   provider-fanout:
     needs: prepare-fanout
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
@@ -773,6 +803,19 @@ jobs:
           if [ -f .runner-bundle/requirements.txt ]; then
             pip install -r .runner-bundle/requirements.txt
           fi
+
+      # Pull the tracks snapshot dumped once by prepare-fanout and point the
+      # scraper at it (see loadAllTrackRows in run-scraper.ts). Skips the 5x
+      # concurrent Supabase read that historically produced statement-timeout
+      # failures during Step 1.
+      - name: Download tracks snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: tracks-snapshot-${{ github.run_id }}
+          path: .runner-artifacts
+
+      - name: Set NGMC_TRACKS_SNAPSHOT_PATH
+        run: echo "NGMC_TRACKS_SNAPSHOT_PATH=${GITHUB_WORKSPACE}/.runner-artifacts/tracks-snapshot.json" >> "${GITHUB_ENV}"
 
       - name: Run provider part
         run: node scripts/run.mjs
