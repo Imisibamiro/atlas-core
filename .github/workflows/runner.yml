@@ -426,7 +426,7 @@ jobs:
 
       # Runner-side recalc — same script + shape as NGMC/scraper.yml has run
       # daily for 3+ months. No dump; reads/writes go live to Supabase via
-      # createRoutingCoreClient() when RECALC_DB_TARGET=supabase. No Edge
+      # createCloudflareCoreClient() when RECALC_DB_TARGET=d1 (default). No Edge
       # Function involvement, so the 150s free-tier idle-timeout doesn't
       # apply — the runner has a 120min job cap and prints a heartbeat every
       # 15s so GH streaming stays alive.
@@ -450,7 +450,7 @@ jobs:
           set +e
           (
             cd .runner-bundle
-            RECALC_DB_TARGET=supabase \
+            RECALC_DB_TARGET=d1 \
               SUPABASE_URL="${SUPABASE_URL}" \
               SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
               CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
@@ -965,7 +965,7 @@ jobs:
           set +e
           (
             cd .runner-bundle
-            RECALC_DB_TARGET=supabase \
+            RECALC_DB_TARGET=d1 \
               SUPABASE_URL="${SUPABASE_URL}" \
               SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
               CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
