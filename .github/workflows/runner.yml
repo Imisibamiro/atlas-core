@@ -961,10 +961,15 @@ jobs:
 
           STARTED_AT=$(date -u +%s)
           set +e
-          SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
-            node --import tsx .runner-bundle/scripts/run-recalc-live-chart.ts \
-            | tee /tmp/recalc-log.txt
-          RECALC_EXIT_CODE=$?
+          # cd into the bundle so `node --import tsx` resolves tsx from the
+          # bundle's node_modules (the same convention scripts/run.mjs uses via
+          # cwd: bundleDir when spawning the provider parts).
+          (
+            cd .runner-bundle
+            SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+              node --import tsx scripts/run-recalc-live-chart.ts
+          ) | tee /tmp/recalc-log.txt
+          RECALC_EXIT_CODE=${PIPESTATUS[0]}
           set -e
           ELAPSED=$(($(date -u +%s) - STARTED_AT))
 
