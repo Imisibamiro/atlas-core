@@ -424,103 +424,59 @@ jobs:
             npm install --omit=dev --prefix .runner-bundle
           fi
 
-      - name: Recalculate live chart
-        id: recalc
-        env:
-          CLOUDFLARE_RECALC_MAX_POLLS: "240"
-          CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS: "15"
+      # Same "dump snapshot then run engine locally" flow as finalize-fanout.
+      # Compute stays on the GH runner; Supabase only sees one bulk read at
+      # the start and the recalc's write batch at the end.
+      - name: Dump recalc inputs snapshot
+        id: recalc_dump
         run: |
           set -euo pipefail
-          # Export chart API credentials from runner keys
-          CHART_URL=""
-          CHART_TOKEN=""
-          if [ -f "${RUNNER_KEY_FILE}" ]; then
-            CHART_URL=$(jq -r '.CHART_API_URL // .CLOUDFLARE_CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
-            CHART_TOKEN=$(jq -r '.CHART_API_REFRESH_TOKEN // .CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
-          fi
-          if [ -z "${CHART_URL}" ]; then
-            echo "::error::Chart API URL not available from runner keys"
+          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
+          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
             exit 1
           fi
-          echo "::add-mask::${CHART_TOKEN}"
+          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          mkdir -p .runner-artifacts/recalc-snapshot
+          SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+            node .runner-bundle/scripts/dump-recalc-inputs-snapshot.mjs .runner-artifacts/recalc-snapshot
+          echo "SNAPSHOT_DIR=${GITHUB_WORKSPACE}/.runner-artifacts/recalc-snapshot" >> "${GITHUB_ENV}"
 
-          # Queue the recalculation asynchronously via Cloudflare-native scoring
-          QUEUE_RESPONSE=$(curl -sS -f -X POST "${CHART_URL}/v1/admin/jobs/recalculate-live-chart" \
-            -H "Authorization: Bearer ${CHART_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d '{}')
-          JOB_ID=$(echo "${QUEUE_RESPONSE}" | jq -r '.jobId // ""')
-          echo "Recalculation queued: ${JOB_ID}"
-          echo "job_id=${JOB_ID}" >> "${GITHUB_OUTPUT}"
-
-          if [ -z "${JOB_ID}" ]; then
-            echo "::error::Failed to queue recalculation: ${QUEUE_RESPONSE}"
+      - name: Recalculate live chart
+        id: recalc
+        run: |
+          set -euo pipefail
+          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
+          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
+            echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
             exit 1
           fi
+          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
 
-          # Poll for the parent job. “Accepted” is not completion: all chunks, preview rows,
-          # cache invalidation, and score freshness must be confirmed before GitHub succeeds.
-          MAX_POLLS="${CLOUDFLARE_RECALC_MAX_POLLS:-60}"
-          POLL_INTERVAL="${CLOUDFLARE_RECALC_POLL_INTERVAL_SECONDS:-15}"
-          FRESHNESS_PATIENCE="${CLOUDFLARE_RECALC_FRESHNESS_PATIENCE:-20}"
-          LAST_STATUS="queued"
-          LAST_TOTAL_CHUNKS=0
-          LAST_COMPLETED_CHUNKS=0
-          LAST_FAILED_CHUNKS=0
-          FRESHNESS_WAIT=0
+          STARTED_AT=$(date -u +%s)
+          set +e
+          (
+            cd .runner-bundle
+            SUPABASE_URL="${SUPABASE_URL}" \
+              SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+              NGMC_RECALC_SNAPSHOT_DIR="${SNAPSHOT_DIR}" \
+              node --import tsx scripts/run-recalc-live-chart.ts
+          ) | tee /tmp/recalc-log.txt
+          RECALC_EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+          ELAPSED=$(($(date -u +%s) - STARTED_AT))
 
-          for i in $(seq 1 "${MAX_POLLS}"); do
-            sleep "${POLL_INTERVAL}"
-            STATUS_RESPONSE=$(curl -sS "${CHART_URL}/v1/admin/jobs/${JOB_ID}/status" \
-              -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{"status":"unknown"}')
-            STATUS=$(echo "${STATUS_RESPONSE}" | jq -r '.job.status // .status // "unknown"' 2>/dev/null || echo "unknown")
-            TOTAL_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.totalChunks // .job.result.summary.total_chunks // .job.total_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
-            COMPLETED_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.completedChunks // .job.result.summary.completed_chunks // .job.completed_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
-            FAILED_CHUNKS=$(echo "${STATUS_RESPONSE}" | jq -r '(.job.result.summary.failedChunks // .job.result.summary.failed_chunks // .job.failed_chunks // 0) | tonumber? // 0' 2>/dev/null || echo 0)
-            LAST_STATUS="${STATUS}"
-            LAST_TOTAL_CHUNKS="${TOTAL_CHUNKS}"
-            LAST_COMPLETED_CHUNKS="${COMPLETED_CHUNKS}"
-            LAST_FAILED_CHUNKS="${FAILED_CHUNKS}"
-            echo "Poll ${i}/${MAX_POLLS}: status=${STATUS}; chunks=${COMPLETED_CHUNKS}/${TOTAL_CHUNKS}; failed=${FAILED_CHUNKS}"
-
-            if [ "${STATUS}" = "failed" ] || [ "${STATUS}" = "error" ] || [ "${STATUS}" = "errored" ] || [ "${STATUS}" = "cancelled" ]; then
-              echo "::error::Cloudflare recalculation job failed: $(echo "${STATUS_RESPONSE}" | jq -r '.job.error // .error // "unknown"')"
-              echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
-              exit 1
-            fi
-
-            if [ "${STATUS}" = "completed" ] || [ "${STATUS}" = "success" ] || [ "${STATUS}" = "succeeded" ]; then
-              if [ "${FAILED_CHUNKS}" -gt 0 ] || { [ "${TOTAL_CHUNKS}" -gt 0 ] && [ "${COMPLETED_CHUNKS}" -lt "${TOTAL_CHUNKS}" ]; }; then
-                echo "Cloudflare reported a terminal status before chunk completion; continuing to wait."
-                continue
-              fi
-
-              CHART_STATUS=$(curl -sS "${CHART_URL}/v1/admin/chart-status" \
-                -H "Authorization: Bearer ${CHART_TOKEN}" 2>/dev/null || echo '{}')
-              LAST_DATA=$(echo "${CHART_STATUS}" | jq -r '.lastDataUpdate // ""')
-              LAST_SCORE=$(echo "${CHART_STATUS}" | jq -r '.lastScoreRefresh // ""')
-              HAS_STALE=$(echo "${CHART_STATUS}" | jq -r '.hasStaleScores // true')
-              STALE_COUNT=$(echo "${CHART_STATUS}" | jq -r '.staleTrackCount // 0')
-              FRESHNESS_WAIT=$((FRESHNESS_WAIT + 1))
-              if [ -n "${LAST_DATA}" ] && [ -n "${LAST_SCORE}" ] \
-                && { [ "${LAST_SCORE}" = "${LAST_DATA}" ] || [[ "${LAST_SCORE}" > "${LAST_DATA}" ]]; } \
-                && [ "${HAS_STALE}" != "true" ] && [ "${STALE_COUNT}" -eq 0 ]; then
-                echo "Recalculation completed with fresh scores and a materialised live preview."
-                echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
-                exit 0
-              fi
-              echo "Freshness wait ${FRESHNESS_WAIT}/${FRESHNESS_PATIENCE}: lastData=${LAST_DATA}; lastScore=${LAST_SCORE}; hasStale=${HAS_STALE}; staleCount=${STALE_COUNT}"
-              if [ "${FRESHNESS_WAIT}" -ge "${FRESHNESS_PATIENCE}" ]; then
-                echo "::warning::Chart freshness not confirmed after ${FRESHNESS_WAIT} polls, but job succeeded (${COMPLETED_CHUNKS}/${TOTAL_CHUNKS} chunks). Accepting."
-                echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
-                exit 0
-              fi
-            fi
-          done
-
-          echo "::error::Recalculation job ${JOB_ID} did not complete with fresh chart output within $((MAX_POLLS * POLL_INTERVAL)) seconds. Final status=${LAST_STATUS}; chunks=${LAST_COMPLETED_CHUNKS}/${LAST_TOTAL_CHUNKS}; failed=${LAST_FAILED_CHUNKS}."
-          echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
-          exit 1
+          if [ "${RECALC_EXIT_CODE}" -eq 0 ]; then
+            echo "Recalc completed in ${ELAPSED}s (GH runner, snapshot + fetch intercept)."
+            echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          echo "::error::Recalc script exited with ${RECALC_EXIT_CODE} after ${ELAPSED}s"
+          echo "recalc_exit=${RECALC_EXIT_CODE}" >> "${GITHUB_OUTPUT}"
+          exit "${RECALC_EXIT_CODE}"
 
   prepare-fanout:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
@@ -940,15 +896,35 @@ jobs:
       - name: Finalize fanout
         run: node scripts/run.mjs
 
+      # Dump every table the recalc engine reads to a local snapshot dir. The
+      # runner then serves those reads from memory via a fetch intercept in
+      # run-recalc-live-chart.ts — so the engine's compute happens entirely on
+      # the GH runner and only its WRITES touch Supabase. This is the read half
+      # of the "GH does the heavy compute, Supabase only sees the result" model
+      # (fanout provider parts already use the same pattern for `tracks`).
+      - name: Dump recalc inputs snapshot
+        if: env.RUNNER_DRY_RUN != 'true'
+        id: recalc_dump
+        run: |
+          set -euo pipefail
+          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
+          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
+            exit 1
+          fi
+          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
+          mkdir -p .runner-artifacts/recalc-snapshot
+          SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+            node .runner-bundle/scripts/dump-recalc-inputs-snapshot.mjs .runner-artifacts/recalc-snapshot
+          # Export the snapshot dir as an absolute path for the next step.
+          echo "SNAPSHOT_DIR=${GITHUB_WORKSPACE}/.runner-artifacts/recalc-snapshot" >> "${GITHUB_ENV}"
+
       - name: Recalculate live chart
         if: env.RUNNER_DRY_RUN != 'true'
         id: recalc
         run: |
           set -euo pipefail
-          # Runs the recalc compute directly on the GH Actions runner via the
-          # ported engine (supabase/functions/recalc-live-chart/engine.ts, shipped
-          # in the runner bundle). No CF queue, no Supabase Edge Function — the
-          # runner talks to Supabase Postgres via PostgREST directly.
           SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
           SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
           if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
@@ -962,11 +938,15 @@ jobs:
           STARTED_AT=$(date -u +%s)
           set +e
           # cd into the bundle so `node --import tsx` resolves tsx from the
-          # bundle's node_modules (the same convention scripts/run.mjs uses via
-          # cwd: bundleDir when spawning the provider parts).
+          # bundle's node_modules (same convention as scripts/run.mjs uses via
+          # cwd: bundleDir for the provider parts). NGMC_RECALC_SNAPSHOT_DIR
+          # is what the fetch intercept looks for; without it the script
+          # refuses to run (won't silently fall through to live Supabase reads).
           (
             cd .runner-bundle
-            SUPABASE_URL="${SUPABASE_URL}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+            SUPABASE_URL="${SUPABASE_URL}" \
+              SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+              NGMC_RECALC_SNAPSHOT_DIR="${SNAPSHOT_DIR}" \
               node --import tsx scripts/run-recalc-live-chart.ts
           ) | tee /tmp/recalc-log.txt
           RECALC_EXIT_CODE=${PIPESTATUS[0]}
