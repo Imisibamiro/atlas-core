@@ -340,6 +340,10 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      SCRAPER_DB_TARGET: supabase
+      RECALC_DB_TARGET: supabase
+      NGMC_CORE_READ_TARGET: supabase
+      NGMC_CORE_WRITE_TARGET: supabase
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
       - name: Checkout
@@ -450,7 +454,10 @@ jobs:
           set +e
           (
             cd .runner-bundle
-            RECALC_DB_TARGET=supabase \
+            SCRAPER_DB_TARGET=supabase \
+              RECALC_DB_TARGET=supabase \
+              NGMC_CORE_READ_TARGET=supabase \
+              NGMC_CORE_WRITE_TARGET=supabase \
               SUPABASE_URL="${SUPABASE_URL}" \
               SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
               CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
@@ -521,6 +528,10 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      SCRAPER_DB_TARGET: supabase
+      RECALC_DB_TARGET: supabase
+      NGMC_CORE_READ_TARGET: supabase
+      NGMC_CORE_WRITE_TARGET: supabase
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
@@ -632,6 +643,7 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       RUNNER_TIMEOUT_MS: "17400000"
       SCRAPER_DB_TARGET: supabase
+      RECALC_DB_TARGET: supabase
       NGMC_CORE_READ_TARGET: supabase
       NGMC_CORE_WRITE_TARGET: supabase
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
@@ -774,6 +786,7 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       PROVIDER_FANOUT_RESULT: ${{ needs.provider-fanout.result || 'manual' }}
       SCRAPER_DB_TARGET: supabase
+      RECALC_DB_TARGET: supabase
       NGMC_CORE_READ_TARGET: supabase
       NGMC_CORE_WRITE_TARGET: supabase
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
@@ -923,7 +936,10 @@ jobs:
           set +e
           (
             cd .runner-bundle
-            RECALC_DB_TARGET=supabase \
+            SCRAPER_DB_TARGET=supabase \
+              RECALC_DB_TARGET=supabase \
+              NGMC_CORE_READ_TARGET=supabase \
+              NGMC_CORE_WRITE_TARGET=supabase \
               SUPABASE_URL="${SUPABASE_URL}" \
               SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
               CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \

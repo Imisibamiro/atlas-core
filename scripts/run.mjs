@@ -16,12 +16,14 @@ const runnerDefaults = {
   CLOUDFLARE_NATIVE_RETRY_MAX_ATTEMPTS: "8",
   CLOUDFLARE_NATIVE_RETRY_BASE_DELAY_MS: "750",
 };
+const sourceOfTruthEnv = supabaseSourceOfTruthEnv(job);
 
 console.log(JSON.stringify({
   stage: "bootstrap",
   job,
   source: process.env.RUNNER_SOURCE || "github",
   cron: process.env.RUNNER_CRON || "manual",
+  sourceOfTruth: sourceOfTruthEnv.SCRAPER_DB_TARGET || sourceOfTruthEnv.RECALC_DB_TARGET || "default",
 }));
 
 if (!job) {
@@ -47,7 +49,14 @@ for (const [command, args] of candidates) {
 
   const result = spawnSync(command, args, {
     cwd: bundleDir,
-    env: { ...runnerDefaults, ...process.env, ...brokeredEnv, RUNNER_JOB: job, NGMC_JOB_KIND: job },
+    env: {
+      ...runnerDefaults,
+      ...process.env,
+      ...brokeredEnv,
+      ...sourceOfTruthEnv,
+      RUNNER_JOB: job,
+      NGMC_JOB_KIND: job,
+    },
     stdio: "inherit",
     timeout: runnerTimeoutMs,
   });
@@ -92,4 +101,23 @@ function readPositiveIntegerEnv(name, fallback) {
 
   console.error(`${name} must be a positive integer, got: ${raw}`);
   process.exit(1);
+}
+
+function supabaseSourceOfTruthEnv(jobName) {
+  const normalized = String(jobName || "").trim();
+  const isFanoutJob =
+    normalized.startsWith("refresh-part:") ||
+    normalized === "daily-refresh-fanout-start" ||
+    normalized === "full-discovery-refresh-fanout-start" ||
+    normalized === "daily-refresh-fanout-finalize" ||
+    normalized === "full-discovery-refresh-fanout-finalize";
+
+  if (!isFanoutJob && normalized !== "recalculate-live-chart") return {};
+
+  return {
+    SCRAPER_DB_TARGET: "supabase",
+    RECALC_DB_TARGET: "supabase",
+    NGMC_CORE_READ_TARGET: "supabase",
+    NGMC_CORE_WRITE_TARGET: "supabase",
+  };
 }
