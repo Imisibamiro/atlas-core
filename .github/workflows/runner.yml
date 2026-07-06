@@ -480,11 +480,9 @@ jobs:
       # Materialize the admin live preview from the fresh atlas_chart_calculation_rows
       # the recalc just wrote. Without this, /admin still shows the last published
       # chart because admin reads admin_live_chart_previews, not atlas rows directly.
-      # finalize-fanout gets this for free through the runner-report webhook
-      # (chart-api handleInternalRunnerReport → reconcileAtlasAdminPreviewIfStale);
-      # the standalone recalculate job doesn't POST that report, so trigger the
-      # reconcile explicitly here. Best-effort: a materialize failure must NOT fail
-      # the recalc that already succeeded.
+      # Best-effort: the rebuild can outlive curl's response budget even when it
+      # succeeds, so verify the admin tab payload after any timeout before warning.
+      # A materialize failure must NOT fail the recalc that already succeeded.
       - name: Reconcile admin live preview
         if: steps.recalc.outputs.recalc_exit == '0'
         run: |
@@ -500,14 +498,42 @@ jobs:
             "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/reconcile-live-preview?force=1" \
             -H "Authorization: Bearer ${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
             -H "Accept: application/json" \
-            --max-time 60 || echo "curl_failed")
-          if [ "${RESPONSE}" != "200" ]; then
-            echo "::warning::Reconcile POST returned HTTP ${RESPONSE}; admin preview may lag until scheduler cron catches up."
-            cat /tmp/reconcile-body.json 2>/dev/null | head -c 500 || true
+            --connect-timeout 10 \
+            --max-time 75 || echo "curl_failed")
+          if [ "${RESPONSE}" = "200" ]; then
+            echo "✓ Admin live preview reconciled."
+            jq -c '{ok, trigger, chartWeek, status:(.status // .note // ""), counts:(.counts // null)}' /tmp/reconcile-body.json 2>/dev/null || cat /tmp/reconcile-body.json | head -c 500
             exit 0
           fi
-          echo "✓ Admin live preview reconciled."
-          jq -c '{ok, trigger, chartWeek, note: .note // .status // ""}' /tmp/reconcile-body.json 2>/dev/null || cat /tmp/reconcile-body.json | head -c 500
+          echo "Reconcile POST returned HTTP ${RESPONSE}; checking served admin preview before warning."
+          cat /tmp/reconcile-body.json 2>/dev/null | head -c 500 || true
+
+          DISPATCH_MS=$(node -e 'const v=Date.parse(process.argv[1] || ""); console.log(Number.isFinite(v) ? v : 0)' "${RUNNER_DISPATCHED_AT:-}")
+          for attempt in $(seq 1 24); do
+            sleep 5
+            STATUS_CODE=$(curl -sS -o /tmp/live-preview-body.json -w "%{http_code}" \
+              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/dashboard/tab/live-preview" \
+              -H "Authorization: Bearer ${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+              -H "Accept: application/json" \
+              --connect-timeout 10 \
+              --max-time 30 || echo "curl_failed")
+            if [ "${STATUS_CODE}" != "200" ]; then
+              echo "Live preview poll ${attempt}: HTTP ${STATUS_CODE}"
+              continue
+            fi
+
+            PREVIEW_GENERATED_AT=$(jq -r '.generatedAt // ""' /tmp/live-preview-body.json)
+            PREVIEW_COUNT=$(jq -r '.count // (.chartData | length) // 0' /tmp/live-preview-body.json)
+            PREVIEW_MS=$(node -e 'const v=Date.parse(process.argv[1] || ""); console.log(Number.isFinite(v) ? v : 0)' "${PREVIEW_GENERATED_AT}")
+            echo "Live preview poll ${attempt}: generatedAt=${PREVIEW_GENERATED_AT:-unknown} count=${PREVIEW_COUNT}"
+            if [ "${PREVIEW_MS}" -ge "${DISPATCH_MS}" ] && [ "${PREVIEW_COUNT}" -gt 0 ]; then
+              echo "✓ Admin live preview is fresh after recalc."
+              jq -c '{ok, count, generatedAt, weekOf}' /tmp/live-preview-body.json 2>/dev/null || true
+              exit 0
+            fi
+          done
+
+          echo "::warning::Admin preview did not become fresh within the polling window; scheduler cron should retry."
 
   prepare-fanout:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
