@@ -985,7 +985,7 @@ jobs:
           echo "::notice title=NGMC refresh report::${SUMMARY}; recalc_exit=${RECALC_EXIT}; max_items=${RUNNER_MAX_ITEMS:-0}"
 
           if [ -n "${KEY_BROKER_URL:-}" ]; then
-            REPORT_OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            REPORT_OIDC_TOKEN=$(curl -sS --connect-timeout 10 --max-time 30 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
               "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner" | jq -r '.value // ""')
             if [ -z "${REPORT_OIDC_TOKEN}" ]; then
               echo "Report OIDC token request returned no token"
@@ -1038,7 +1038,7 @@ jobs:
 
             # Broker report is best-effort: a non-2xx must NOT fail the workflow when
             # the recalc itself succeeded. Capture status and warn on rejection.
-            REPORT_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
+            REPORT_STATUS=$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -w "%{http_code}" -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/report" \
               -H "Authorization: Bearer ${REPORT_OIDC_TOKEN}" \
               -H "Content-Type: application/json" \
               -H "Accept: application/json" \
