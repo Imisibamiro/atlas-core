@@ -1,22 +1,27 @@
-# GA Daily Report — 2026-07-05
+# GA Daily Report — 2026-07-06
 
-**5** new items from 7 Nigerian gospel blogs
+**9** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelMinds: 3
-- SelahAfrik: 2
+- PraiseJamzBlog: 5
+- GMusicPlus: 2
+- GospelMinds: 2
 
 ### By Category
 
-## 🎵 New Music (3)
+## 🎵 New Music (7)
 
-- [DOWNLOAD MP3: Olajuwon Oyediran - My Victory Has Come](https://gospelminds.com/audio-music/download-mp3-olajuwon-oyediran-my-victory-has-come/) — _GospelMinds_
-- [AMA Records Signee Pentikostal Drops New Single "Arabaribiti"](https://gospelminds.com/audio-music/ama-records-signee-pentikostal-drops-new-single-arabaribiti/) — _GospelMinds_
-- [AUDIO & VIDEO: The Psalmists - Greater Is He (Lyrics)](https://gospelminds.com/audio-music/audio-video-the-psalmists-greater-is-he-lyrics/) — _GospelMinds_
+- ["Promise Keeper" — Mercy Chinwo feat. Nathaniel Bassey](https://www.gmusicplus.com/promise-keeper-mercy-chinwo-feat-nathaniel-bassey/) — _GMusicPlus_
+- [Minister GUC Unveils GYatsar Creative Studio and Music Hub](https://www.gmusicplus.com/minister-guc-unveils-gyatsar-creative-studio-and-music-hub/) — _GMusicPlus_
+- [DOWNLOAD MP3: GBlest Edmund - Jesus Make A Way](https://gospelminds.com/audio-music/download-mp3-gblest-edmund-jesus-make-a-way/) — _GospelMinds_
+- [Mp3 + Video: Mercy Chinwo - Promise Keeper ft Nathaniel Bassey](https://gospelminds.com/audio-music/mp3-video-mercy-chinwo-promise-keeper-ft-nathaniel-bassey/) — _GospelMinds_
+- [[MUSIC] Judikay - Eloi (My God)](https://www.praisejamzblog.com/2026/07/music-judikay-eloi-my-god.html) — _PraiseJamzBlog_
+- [[MUSIC] Phelelani Vox - Be My Guide (Live)](https://www.praisejamzblog.com/2026/07/music-phelelani-vox-be-my-guide-live.html) — _PraiseJamzBlog_
+- [[MUSIC] Tate Butts - When I Pray](https://www.praisejamzblog.com/2026/07/music-tate-butts-when-i-pray.html) — _PraiseJamzBlog_
 
-## 📢 News (2)
+## 📖 Devotional (2)
 
-- [‘Once Saved & Forever Saved’ Is Actually Demonic, Says Dr. Andy Osakwe](https://selahafrik.com/2026/07/once-saved-forever-saved/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=once-saved-forever-saved) — _SelahAfrik_
-- [Death Toll Surpasses 1,400, Nearly 70,000 Remain Missing Following Twin Venezuela Earthquakes](https://selahafrik.com/2026/07/earthquakes-struck-venezuela/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=earthquakes-struck-venezuela) — _SelahAfrik_
+- [Andrew Wommack Devotional for July 5 2026 — Who Crosses Your Path?](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-5.html) — _PraiseJamzBlog_
+- [Rhapsody of Realities for 5 July 2026 — Knowledge Of Your True Nature](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-5-july-2026.html) — _PraiseJamzBlog_
