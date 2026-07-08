@@ -57,6 +57,11 @@ name: "Run"
         required: false
         default: "false"
         type: string
+      skip_recalc:
+        description: "Skip the chart recalc after finalize (sample/test runs only — protects the live preview)"
+        required: false
+        default: "false"
+        type: string
 
 permissions:
   contents: read
@@ -950,7 +955,7 @@ jobs:
           )
 
       - name: Recalculate live chart
-        if: env.RUNNER_DRY_RUN != 'true'
+        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.skip_recalc != 'true'
         id: recalc
         run: |
           set -euo pipefail
