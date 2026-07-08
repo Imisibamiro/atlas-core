@@ -433,18 +433,14 @@ jobs:
             npm install --omit=dev --prefix .runner-bundle
           fi
 
-      # Runner-side recalc — same script + shape as NGMC/scraper.yml has run
-      # daily for 3+ months. Reads/writes route through the Supabase-aware
-      # client with RECALC_DB_TARGET=supabase. No Edge Function involvement,
-      # so the 150s free-tier idle-timeout doesn't apply — the runner has a
-      # 120min job cap and prints a heartbeat every 15s so GH streaming stays
-      # alive.
+      # Recalc trigger — POSTs the Cloudflare worker's native recalc endpoint,
+      # which scores relational D1 and persists the admin preview. atlas-core runs
+      # no recalc engine anymore; this step just fires the worker and gates on the
+      # result (the worker's 300s CPU budget covers the recalc).
       - name: Recalculate live chart
         id: recalc
         run: |
           set -euo pipefail
-          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
-          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
           if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
@@ -452,7 +448,6 @@ jobs:
             echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
             exit 1
           fi
-          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
           [ -n "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ] && echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
 
           STARTED_AT=$(date -u +%s)
@@ -866,12 +861,9 @@ jobs:
       - name: Finalize fanout
         run: node scripts/run.mjs
 
-      # Runner-side finalize — matches NGMC/scraper.yml daily pattern (3+ months
-      # in production). Two steps: drain any pending snapshot writes from the CF
-      # admin-jobs queue, then run the recalc engine on the runner reading/
-      # writing Supabase via createRoutingCoreClient(). No dump; no 150s Edge
-      # ceiling — the runner has a 120min job cap and the script heartbeats
-      # every 15s.
+      # Runner-side finalize — two steps: drain any pending snapshot writes from
+      # the Cloudflare admin-jobs queue, then trigger the worker's native recalc
+      # (worker scores relational D1 + persists the preview). No Supabase; no dump.
       - name: Process snapshot queue
         if: env.RUNNER_DRY_RUN != 'true'
         run: |
@@ -895,8 +887,6 @@ jobs:
         id: recalc
         run: |
           set -euo pipefail
-          SUPABASE_URL=$(jq -r '.SUPABASE_URL // .NGMC_SUPABASE_URL // ""' "${RUNNER_KEY_FILE}")
-          SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
           if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
@@ -905,7 +895,6 @@ jobs:
             echo "{\"ok\":false,\"stage\":\"missing_env\"}" > /tmp/recalc-output.jsonl
             exit 1
           fi
-          echo "::add-mask::${SUPABASE_SERVICE_ROLE_KEY}"
           [ -n "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ] && echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
 
           STARTED_AT=$(date -u +%s)
