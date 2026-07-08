@@ -16,7 +16,7 @@ const runnerDefaults = {
   CLOUDFLARE_NATIVE_RETRY_MAX_ATTEMPTS: "8",
   CLOUDFLARE_NATIVE_RETRY_BASE_DELAY_MS: "750",
 };
-const sourceOfTruthEnv = supabaseSourceOfTruthEnv(job);
+const sourceOfTruthEnv = cloudflareTargetEnv(job);
 
 console.log(JSON.stringify({
   stage: "bootstrap",
@@ -103,7 +103,7 @@ function readPositiveIntegerEnv(name, fallback) {
   process.exit(1);
 }
 
-function supabaseSourceOfTruthEnv(jobName) {
+function cloudflareTargetEnv(jobName) {
   const normalized = String(jobName || "").trim();
   const isFanoutJob =
     normalized.startsWith("refresh-part:") ||
@@ -114,10 +114,14 @@ function supabaseSourceOfTruthEnv(jobName) {
 
   if (!isFanoutJob && normalized !== "recalculate-live-chart") return {};
 
+  // Cloudflare relational D1 (d1rel) is the sole core store since the cutover. NEVER inject
+  // supabase targets: there are no Supabase creds in the key broker, and the scraper hardcodes
+  // the Cloudflare core client anyway — these keep the bootstrap log + any env-respecting code
+  // honest and pointed at Cloudflare.
   return {
-    SCRAPER_DB_TARGET: "supabase",
-    RECALC_DB_TARGET: "supabase",
-    NGMC_CORE_READ_TARGET: "supabase",
-    NGMC_CORE_WRITE_TARGET: "supabase",
+    SCRAPER_DB_TARGET: "cloudflare",
+    RECALC_DB_TARGET: "cloudflare",
+    NGMC_CORE_READ_TARGET: "d1",
+    NGMC_CORE_WRITE_TARGET: "d1",
   };
 }
