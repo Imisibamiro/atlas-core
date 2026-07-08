@@ -955,7 +955,7 @@ jobs:
           )
 
       - name: Recalculate live chart
-        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.skip_recalc != 'true'
+        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.skip_recalc != 'true' && vars.HOLD_RECALC != 'true'
         id: recalc
         run: |
           set -euo pipefail
