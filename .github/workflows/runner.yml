@@ -345,10 +345,10 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
-      SCRAPER_DB_TARGET: supabase
-      RECALC_DB_TARGET: supabase
-      NGMC_CORE_READ_TARGET: supabase
-      NGMC_CORE_WRITE_TARGET: supabase
+      SCRAPER_DB_TARGET: cloudflare
+      RECALC_DB_TARGET: cloudflare
+      NGMC_CORE_READ_TARGET: d1
+      NGMC_CORE_WRITE_TARGET: d1
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
       - name: Checkout
@@ -447,8 +447,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
+          if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
+            echo "::error::CLOUDFLARE_CHART_API_URL or CLOUDFLARE_CHART_API_REFRESH_TOKEN missing from runner keys"
             echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
             exit 1
           fi
@@ -459,12 +459,7 @@ jobs:
           set +e
           (
             cd .runner-bundle
-            SCRAPER_DB_TARGET=supabase \
-              RECALC_DB_TARGET=supabase \
-              NGMC_CORE_READ_TARGET=supabase \
-              NGMC_CORE_WRITE_TARGET=supabase \
-              SUPABASE_URL="${SUPABASE_URL}" \
-              SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+            RECALC_DB_TARGET=cloudflare \
               CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
               CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
               node --import tsx scripts/recalculate-live-chart.ts
@@ -568,10 +563,10 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
-      SCRAPER_DB_TARGET: supabase
-      RECALC_DB_TARGET: supabase
-      NGMC_CORE_READ_TARGET: supabase
-      NGMC_CORE_WRITE_TARGET: supabase
+      SCRAPER_DB_TARGET: cloudflare
+      RECALC_DB_TARGET: cloudflare
+      NGMC_CORE_READ_TARGET: d1
+      NGMC_CORE_WRITE_TARGET: d1
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
@@ -682,10 +677,10 @@ jobs:
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       RUNNER_TIMEOUT_MS: "17400000"
-      SCRAPER_DB_TARGET: supabase
-      RECALC_DB_TARGET: supabase
-      NGMC_CORE_READ_TARGET: supabase
-      NGMC_CORE_WRITE_TARGET: supabase
+      SCRAPER_DB_TARGET: cloudflare
+      RECALC_DB_TARGET: cloudflare
+      NGMC_CORE_READ_TARGET: d1
+      NGMC_CORE_WRITE_TARGET: d1
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job }}:${{ github.run_id }}:${{ github.run_attempt }}
@@ -825,10 +820,10 @@ jobs:
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       PROVIDER_FANOUT_RESULT: ${{ needs.provider-fanout.result || 'manual' }}
-      SCRAPER_DB_TARGET: supabase
-      RECALC_DB_TARGET: supabase
-      NGMC_CORE_READ_TARGET: supabase
-      NGMC_CORE_WRITE_TARGET: supabase
+      SCRAPER_DB_TARGET: cloudflare
+      RECALC_DB_TARGET: cloudflare
+      NGMC_CORE_READ_TARGET: d1
+      NGMC_CORE_WRITE_TARGET: d1
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
@@ -963,8 +958,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SUPABASE_SERVICE_ROLE_KEY // .NGMC_SUPABASE_SERVICE_ROLE_KEY // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
           CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from runner keys"
+          if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
+            echo "::error::CLOUDFLARE_CHART_API_URL or CLOUDFLARE_CHART_API_REFRESH_TOKEN missing from runner keys"
             echo "recalc_exit=1" >> "${GITHUB_OUTPUT}"
             echo "{\"ok\":false,\"stage\":\"missing_env\"}" > /tmp/recalc-output.jsonl
             exit 1
@@ -976,12 +971,7 @@ jobs:
           set +e
           (
             cd .runner-bundle
-            SCRAPER_DB_TARGET=supabase \
-              RECALC_DB_TARGET=supabase \
-              NGMC_CORE_READ_TARGET=supabase \
-              NGMC_CORE_WRITE_TARGET=supabase \
-              SUPABASE_URL="${SUPABASE_URL}" \
-              SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}" \
+            RECALC_DB_TARGET=cloudflare \
               CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
               CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
               node --import tsx scripts/recalculate-live-chart.ts
