@@ -463,7 +463,7 @@ jobs:
           # d1rel) — this step just triggers the worker and gates on its result.
           (
             HTTP_CODE=$(curl -sS -X POST \
-              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/reconcile-live-preview?native=1&sync=1" \
+              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/recalculate-native?sync=1" \
               -H "Authorization: Bearer ${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
               -H "Accept: application/json" \
               -o /tmp/recalc-body.json -w '%{http_code}' || echo "000")
@@ -477,7 +477,7 @@ jobs:
           ELAPSED=$(($(date -u +%s) - STARTED_AT))
 
           if [ "${RECALC_EXIT_CODE}" -eq 0 ]; then
-            echo "Recalc completed in ${ELAPSED}s (runner-side, Supabase routing client)."
+            echo "Recalc completed in ${ELAPSED}s (worker-native recalc on relational D1)."
             echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
@@ -983,7 +983,7 @@ jobs:
           # d1rel) — this step just triggers the worker and gates on its result.
           (
             HTTP_CODE=$(curl -sS -X POST \
-              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/reconcile-live-preview?native=1&sync=1" \
+              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/recalculate-native?sync=1" \
               -H "Authorization: Bearer ${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
               -H "Accept: application/json" \
               -o /tmp/recalc-body.json -w '%{http_code}' || echo "000")
@@ -1006,7 +1006,7 @@ jobs:
               RECALC_JSON=$(jq -Rs 'capture("(?<obj>\\{\\s*\"ok\":\\s*true[\\s\\S]*?\"stage\":\\s*\"complete\"[\\s\\S]*?\\})") | .obj | fromjson | tojson' /tmp/recalc-log.txt 2>/dev/null || echo "")
             fi
             [ -z "${RECALC_JSON}" ] && RECALC_JSON="{\"ok\":true,\"stage\":\"complete\",\"elapsedSec\":${ELAPSED}}"
-            echo "Recalc completed in ${ELAPSED}s (runner-side, Supabase routing client)."
+            echo "Recalc completed in ${ELAPSED}s (worker-native recalc on relational D1)."
             echo "${RECALC_JSON}" > /tmp/recalc-output.jsonl
             echo "recalc_exit=0" >> "${GITHUB_OUTPUT}"
             exit 0
