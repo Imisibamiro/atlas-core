@@ -457,12 +457,20 @@ jobs:
 
           STARTED_AT=$(date -u +%s)
           set +e
+          # Recalc is now WORKER-NATIVE: the Cloudflare worker scores the relational D1
+          # store (buildNativeAdminScoring) and persists the saved preview. atlas-core no
+          # longer runs the recalc engine (it was doc-store/Supabase-shaped and no-ops on
+          # d1rel) — this step just triggers the worker and gates on its result.
           (
-            cd .runner-bundle
-            RECALC_DB_TARGET=cloudflare \
-              CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
-              CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
-              node --import tsx scripts/recalculate-live-chart.ts
+            HTTP_CODE=$(curl -sS -X POST \
+              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/reconcile-live-preview?native=1&sync=1" \
+              -H "Authorization: Bearer ${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+              -H "Accept: application/json" \
+              -o /tmp/recalc-body.json -w '%{http_code}' || echo "000")
+            echo "native recalc via worker: HTTP ${HTTP_CODE}"
+            cat /tmp/recalc-body.json 2>/dev/null || true
+            echo
+            test "${HTTP_CODE}" = "200" && grep -q '"ok":true' /tmp/recalc-body.json
           ) | tee /tmp/recalc-log.txt
           RECALC_EXIT_CODE=${PIPESTATUS[0]}
           set -e
@@ -969,12 +977,20 @@ jobs:
 
           STARTED_AT=$(date -u +%s)
           set +e
+          # Recalc is now WORKER-NATIVE: the Cloudflare worker scores the relational D1
+          # store (buildNativeAdminScoring) and persists the saved preview. atlas-core no
+          # longer runs the recalc engine (it was doc-store/Supabase-shaped and no-ops on
+          # d1rel) — this step just triggers the worker and gates on its result.
           (
-            cd .runner-bundle
-            RECALC_DB_TARGET=cloudflare \
-              CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
-              CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
-              node --import tsx scripts/recalculate-live-chart.ts
+            HTTP_CODE=$(curl -sS -X POST \
+              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/reconcile-live-preview?native=1&sync=1" \
+              -H "Authorization: Bearer ${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
+              -H "Accept: application/json" \
+              -o /tmp/recalc-body.json -w '%{http_code}' || echo "000")
+            echo "native recalc via worker: HTTP ${HTTP_CODE}"
+            cat /tmp/recalc-body.json 2>/dev/null || true
+            echo
+            test "${HTTP_CODE}" = "200" && grep -q '"ok":true' /tmp/recalc-body.json
           ) | tee /tmp/recalc-log.txt
           RECALC_EXIT_CODE=${PIPESTATUS[0]}
           set -e
