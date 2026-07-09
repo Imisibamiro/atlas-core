@@ -882,6 +882,50 @@ jobs:
               node --import tsx scripts/process-snapshot-write-queue.ts
           )
 
+      - name: Wait for snapshot drain
+        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.skip_recalc != 'true' && vars.HOLD_RECALC != 'true'
+        run: |
+          set -euo pipefail
+          # Confirm the snapshot ingest queue has fully SETTLED into D1 before recalc
+          # scores. "Process snapshot queue" above triggers the drain, but the
+          # ngmc-snapshot-ingest consumer writes track_snapshots asynchronously, so rows
+          # can still be landing after that step returns. Scoring mid-drain builds a
+          # transient chart (2026-07-09: RAISE AM hit #1 mid-drain, then settled to #44
+          # once the queue finished). Poll the worker's exact count+max-id cursor until
+          # it holds steady, then let recalc proceed. Bounded ~4 min; degrades gracefully.
+          CHART_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CHART_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          [ -n "${CHART_TOKEN}" ] && echo "::add-mask::${CHART_TOKEN}"
+          if [ -z "${CHART_URL}" ] || [ -z "${CHART_TOKEN}" ]; then
+            echo "::warning::snapshot-drain: missing chart API url/token — skipping drain wait"
+            exit 0
+          fi
+          STABLE=0
+          PREV=""
+          POLLS=0
+          MAX_POLLS=40   # ~4 min ceiling at 6s/poll
+          while [ "${POLLS}" -lt "${MAX_POLLS}" ]; do
+            RESP=$(curl -sS --max-time 20 -H "Authorization: Bearer ${CHART_TOKEN}" "${CHART_URL}/v1/admin/charts/snapshot-drain-status" 2>/dev/null || echo "")
+            CUR=$(printf '%s' "${RESP}" | jq -r '"\(.count)-\(.maxId)"' 2>/dev/null || echo "")
+            POLLS=$((POLLS + 1))
+            if [ -z "${CUR}" ] || [ "${CUR}" = "null-null" ]; then
+              echo "snapshot-drain: status unreadable (poll ${POLLS}) — proceeding without wait"
+              exit 0
+            fi
+            if [ "${CUR}" = "${PREV}" ]; then
+              STABLE=$((STABLE + 1))
+              if [ "${STABLE}" -ge 3 ]; then
+                echo "snapshot-drain: quiescent at ${CUR} after ${POLLS} polls — recalc may proceed"
+                exit 0
+              fi
+            else
+              STABLE=1
+              PREV="${CUR}"
+            fi
+            sleep 6
+          done
+          echo "::warning::snapshot-drain: still changing after ${POLLS} polls (last=${PREV}) — recalc will proceed on possibly-incomplete data"
+
       - name: Recalculate live chart
         if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.skip_recalc != 'true' && vars.HOLD_RECALC != 'true'
         id: recalc
