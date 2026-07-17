@@ -484,7 +484,7 @@ jobs:
   prepare-fanout:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 180
     outputs:
       run_id: ${{ steps.start.outputs.run_id }}
       snapshot_at: ${{ steps.start.outputs.snapshot_at }}
@@ -593,6 +593,13 @@ jobs:
 
       - name: Start fanout run
         id: start
+        run: node scripts/run.mjs
+
+      - name: Heal Apple metadata once before provider fanout
+        env:
+          RUNNER_JOB: ${{ github.event.inputs.job }}-prepare
+          NGMC_REFRESH_RUN_ID: ${{ steps.start.outputs.run_id }}
+          NGMC_REFRESH_SNAPSHOT_AT: ${{ steps.start.outputs.snapshot_at }}
         run: node scripts/run.mjs
 
   provider-fanout:

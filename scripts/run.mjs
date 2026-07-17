@@ -109,6 +109,8 @@ function cloudflareTargetEnv(jobName) {
     normalized.startsWith("refresh-part:") ||
     normalized === "daily-refresh-fanout-start" ||
     normalized === "full-discovery-refresh-fanout-start" ||
+    normalized === "daily-refresh-fanout-prepare" ||
+    normalized === "full-discovery-refresh-fanout-prepare" ||
     normalized === "daily-refresh-fanout-finalize" ||
     normalized === "full-discovery-refresh-fanout-finalize";
 
