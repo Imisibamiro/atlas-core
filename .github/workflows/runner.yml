@@ -994,6 +994,55 @@ jobs:
           echo "recalc_exit=${RECALC_EXIT_CODE}" >> "${GITHUB_OUTPUT}"
           exit "${RECALC_EXIT_CODE}"
 
+      - name: Sync public data after recalculation
+        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.skip_recalc != 'true' && vars.HOLD_RECALC != 'true'
+        run: |
+          set -euo pipefail
+          CHART_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CHART_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${CHART_URL}" ] || [ -z "${CHART_TOKEN}" ]; then
+            echo "::error::CLOUDFLARE_CHART_API_URL or CLOUDFLARE_CHART_API_REFRESH_TOKEN missing from runner keys"
+            exit 1
+          fi
+          echo "::add-mask::${CHART_TOKEN}"
+
+          ACCEPTED=$(curl -sS -f --connect-timeout 10 --max-time 30 -X POST \
+            "${CHART_URL%/}/v1/admin/jobs/public-sync" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Accept: application/json")
+          JOB_ID=$(printf '%s' "${ACCEPTED}" | jq -r '.jobId // .job_id // .job.id // empty')
+          if [ -z "${JOB_ID}" ]; then
+            echo "::error::Public sync did not return an admin job id"
+            printf '%s\n' "${ACCEPTED}"
+            exit 1
+          fi
+          echo "Public sync queued as ${JOB_ID}; waiting for terminal status."
+
+          for attempt in $(seq 1 120); do
+            STATUS_BODY=$(curl -sS -f --connect-timeout 10 --max-time 30 \
+              "${CHART_URL%/}/v1/admin/jobs/${JOB_ID}/status" \
+              -H "Authorization: Bearer ${CHART_TOKEN}" \
+              -H "Accept: application/json")
+            JOB_STATUS=$(printf '%s' "${STATUS_BODY}" | jq -r '.job.status // .status // "unknown"')
+            case "${JOB_STATUS}" in
+              succeeded|completed)
+                echo "Public sync ${JOB_ID} completed successfully."
+                exit 0
+                ;;
+              failed|timed_out|cancelled|canceled)
+                JOB_ERROR=$(printf '%s' "${STATUS_BODY}" | jq -c '.job.error // .error // "unknown error"')
+                echo "::error::Public sync ${JOB_ID} failed: ${JOB_ERROR}"
+                exit 1
+                ;;
+            esac
+            if [ $((attempt % 12)) -eq 0 ]; then
+              echo "Waiting for public sync ${JOB_ID}: status=${JOB_STATUS}, attempt=${attempt}/120"
+            fi
+            sleep 5
+          done
+          echo "::error::Public sync ${JOB_ID} did not complete within 10 minutes"
+          exit 1
+
       - name: Write refresh report
         if: always() && steps.recalc.outcome != 'skipped'
         env:
@@ -1088,3 +1137,36 @@ jobs:
               echo "::warning::Broker report rejected (HTTP ${REPORT_STATUS}); not failing the job (recalc_exit=${RECALC_EXIT})"
             fi
           fi
+
+      - name: Enforce provider refresh outcome
+        if: always()
+        run: |
+          set -euo pipefail
+          CHART_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CHART_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${CHART_URL}" ] || [ -z "${CHART_TOKEN}" ]; then
+            echo "::error::Cannot enforce provider outcome: chart API URL/token missing"
+            exit 1
+          fi
+          echo "::add-mask::${CHART_TOKEN}"
+
+          STATUS_BODY=$(curl -sS -f --connect-timeout 10 --max-time 30 \
+            "${CHART_URL%/}/v1/admin/provider-refresh/status?run_id=$(printf '%s' "${NGMC_REFRESH_RUN_ID}" | jq -sRr @uri)" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Accept: application/json")
+          RUN_STATUS=$(printf '%s' "${STATUS_BODY}" | jq -r '.run.status // "unknown"')
+          GAPS=$(printf '%s' "${STATUS_BODY}" | jq -c '[.parts[]? | select(.outcome_status == "completed_with_gaps" or .outcome_status == "not_configured") | {provider,outcome_status,gap_count,coverage_pct,transient}]')
+          case "${RUN_STATUS}" in
+            completed|dry_run_completed)
+              echo "Provider refresh ${NGMC_REFRESH_RUN_ID} is healthy: status=${RUN_STATUS}"
+              ;;
+            completed_with_gaps)
+              echo "::error::Provider refresh completed with gaps after downstream processing: ${GAPS}"
+              exit 1
+              ;;
+            *)
+              RUN_ERROR=$(printf '%s' "${STATUS_BODY}" | jq -c '.run.finalizer_error // .run.error // "unknown error"')
+              echo "::error::Provider refresh ended in unexpected state ${RUN_STATUS}: ${RUN_ERROR}"
+              exit 1
+              ;;
+          esac
