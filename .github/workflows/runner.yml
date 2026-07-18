@@ -32,6 +32,11 @@ name: "Run"
         required: false
         default: "0"
         type: string
+      target_track_ids:
+        description: "Optional comma-separated exact track IDs for a Spotify-only recovery"
+        required: false
+        default: ""
+        type: string
       job_run_id:
         description: "Optional Cloudflare/admin job id to report back against"
         required: false
@@ -83,6 +88,7 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      SPOTIFY_TARGET_TRACK_IDS: ${{ github.event.inputs.target_track_ids }}
       NGMC_JOB_RUN_ID: ${{ github.event.inputs.job_run_id }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id }}
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.job_run_id }}
