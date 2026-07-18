@@ -1010,6 +1010,10 @@ jobs:
             "${CHART_URL%/}/v1/admin/jobs/public-sync" \
             -H "Authorization: Bearer ${CHART_TOKEN}" \
             -H "Accept: application/json")
+          if printf '%s' "${ACCEPTED}" | jq -e '.ok == true and .job == "public-sync"' >/dev/null; then
+            echo "Public sync completed inline successfully."
+            exit 0
+          fi
           JOB_ID=$(printf '%s' "${ACCEPTED}" | jq -r '.jobId // .job_id // .job.id // empty')
           if [ -z "${JOB_ID}" ]; then
             echo "::error::Public sync did not return an admin job id"
