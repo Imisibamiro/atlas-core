@@ -868,6 +868,42 @@ jobs:
             npm install --omit=dev --prefix .runner-bundle
           fi
 
+      - name: Close failed provider fanout
+        if: ${{ (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout') && needs.provider-fanout.result != 'success' }}
+        run: |
+          set -euo pipefail
+          CHART_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CHART_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${CHART_URL}" ] || [ -z "${CHART_TOKEN}" ]; then
+            echo "::warning::Cannot close failed provider refresh: chart API URL/token missing"
+            exit 0
+          fi
+          echo "::add-mask::${CHART_TOKEN}"
+
+          FAIL_BODY=$(jq -n \
+            --arg run_id "${NGMC_REFRESH_RUN_ID}" \
+            --arg stage "github_provider_fanout" \
+            --arg error "Provider fanout result was ${PROVIDER_FANOUT_RESULT} in GitHub Actions ${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}" \
+            '{run_id: $run_id, stage: $stage, error: $error}')
+          set +e
+          HTTP_CODE=$(curl -sS --connect-timeout 10 --max-time 30 \
+            -o /tmp/provider-refresh-fail.json -w '%{http_code}' \
+            -X POST "${CHART_URL%/}/v1/admin/provider-refresh/fail" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "${FAIL_BODY}")
+          CURL_EXIT=$?
+          set -e
+          if [ "${CURL_EXIT}" -eq 0 ] && [ "${HTTP_CODE}" -ge 200 ] && [ "${HTTP_CODE}" -lt 300 ] \
+            && jq -e '.ok == true and .status == "failed"' /tmp/provider-refresh-fail.json >/dev/null 2>&1; then
+            echo "Closed failed provider refresh ${NGMC_REFRESH_RUN_ID}; coordinator lease released."
+            exit 0
+          fi
+
+          FAIL_ERROR=$(jq -r '.error // .message // "unknown_error"' /tmp/provider-refresh-fail.json 2>/dev/null || echo "unknown_error")
+          echo "::warning::Could not close failed provider refresh ${NGMC_REFRESH_RUN_ID}: curl=${CURL_EXIT}, HTTP=${HTTP_CODE:-000}, error=${FAIL_ERROR}"
+
       - name: Check provider fanout result
         if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
         run: |
