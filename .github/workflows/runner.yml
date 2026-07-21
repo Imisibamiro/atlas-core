@@ -513,7 +513,9 @@ jobs:
       RECALC_DB_TARGET: cloudflare
       NGMC_CORE_READ_TARGET: d1
       NGMC_CORE_WRITE_TARGET: d1
-      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      # A refresh run id is not proof that a classifier job was dispatched.
+      # Wait only when the scheduler supplies an explicit classifier handoff id.
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
@@ -633,7 +635,7 @@ jobs:
       RECALC_DB_TARGET: cloudflare
       NGMC_CORE_READ_TARGET: d1
       NGMC_CORE_WRITE_TARGET: d1
-      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       # Compute the same stable id as prepare-fanout instead of transporting it
       # through a job output. GitHub suppresses outputs that overlap any masked
@@ -780,7 +782,7 @@ jobs:
       RECALC_DB_TARGET: cloudflare
       NGMC_CORE_READ_TARGET: d1
       NGMC_CORE_WRITE_TARGET: d1
-      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id || github.event.inputs.job_run_id }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
