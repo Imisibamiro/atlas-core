@@ -1053,7 +1053,9 @@ jobs:
           fi
           echo "::add-mask::${CHART_TOKEN}"
 
-          ACCEPTED=$(curl -sS -f --connect-timeout 10 --max-time 30 -X POST \
+          # Public sync rebuilds caches and materialized public payloads inline;
+          # production runs commonly need more than 30 seconds.
+          ACCEPTED=$(curl -sS -f --connect-timeout 10 --max-time 180 -X POST \
             "${CHART_URL%/}/v1/admin/jobs/public-sync" \
             -H "Authorization: Bearer ${CHART_TOKEN}" \
             -H "Accept: application/json")
