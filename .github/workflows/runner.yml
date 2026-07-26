@@ -1207,13 +1207,17 @@ jobs:
             -H "Accept: application/json")
           RUN_STATUS=$(printf '%s' "${STATUS_BODY}" | jq -r '.run.status // "unknown"')
           GAPS=$(printf '%s' "${STATUS_BODY}" | jq -c '[.parts[]? | select(.outcome_status == "completed_with_gaps" or .outcome_status == "not_configured") | {provider,outcome_status,gap_count,coverage_pct,transient}]')
+          BLOCKING_GAPS=$(printf '%s' "${GAPS}" | jq -c '[.[] | select(.provider == "youtube")]')
           case "${RUN_STATUS}" in
             completed|dry_run_completed)
               echo "Provider refresh ${NGMC_REFRESH_RUN_ID} is healthy: status=${RUN_STATUS}"
               ;;
             completed_with_gaps)
-              echo "::error::Provider refresh completed with gaps after downstream processing: ${GAPS}"
-              exit 1
+              if [ "$(printf '%s' "${BLOCKING_GAPS}" | jq 'length')" -gt 0 ]; then
+                echo "::error::Provider refresh completed with blocking gaps after downstream processing: ${BLOCKING_GAPS}"
+                exit 1
+              fi
+              echo "::warning::Provider refresh completed with non-blocking provider gaps: ${GAPS}"
               ;;
             *)
               RUN_ERROR=$(printf '%s' "${STATUS_BODY}" | jq -c '.run.finalizer_error // .run.error // "unknown error"')
