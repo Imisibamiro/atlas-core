@@ -1,4 +1,4 @@
-# GA Daily Report — 2026-07-26
+# GA Daily Report — 2026-07-27
 
 **6** new items from 7 Nigerian gospel blogs
 
@@ -6,18 +6,21 @@
 
 ### By Source
 - PraiseJamzBlog: 5
-- GospelMinds: 1
+- GMusicPlus: 1
 
 ### By Category
 
-## 🎵 New Music (4)
+## 🎵 New Music (3)
 
-- [DOWNLOAD MP3: Minister Lavic — Ya Yesu Na](https://gospelminds.com/audio-music/download-mp3-minister-lavic-ya-yesu-na/) — _GospelMinds_
-- [[MUSIC] Joe L Barnes, Seph Schlueter - Road Less Traveled](https://www.praisejamzblog.com/2026/07/music-joe-l-barnes-seph-schlueter-road.html) — _PraiseJamzBlog_
-- [[MUSIC] Phil Wickham - Everyday Hallelujah](https://www.praisejamzblog.com/2026/07/music-phil-wickham-everyday-hallelujah.html) — _PraiseJamzBlog_
-- [[MUSIC] Godswill Oyor - Favour Is Coming](https://www.praisejamzblog.com/2026/07/music-godswill-oyor-favour-is-coming.html) — _PraiseJamzBlog_
+- [[VIDEO] Greatman Takit - Super Cool](https://www.praisejamzblog.com/2026/07/video-greatman-takit-super-cool.html) — _PraiseJamzBlog_
+- [DOE Announces New Album Shiloh, Releases Powerful Worship Anthem “High Praise”](https://www.praisejamzblog.com/2026/07/doe-announces-new-album-shiloh-releases.html) — _PraiseJamzBlog_
+- [[MUSIC] Jon Reddick, CAIN - I Choose You](https://www.praisejamzblog.com/2026/07/music-jon-reddick-cain-i-choose-you.html) — _PraiseJamzBlog_
+
+## 💿 Album/EP (1)
+
+- ["Flames Of A Wildfire" - Greatman Takit Releases New Album &#124; Listen Here!](https://www.gmusicplus.com/flames-of-a-wildfire-greatman-takit-releases-new-album-listen-here/) — _GMusicPlus_
 
 ## 📖 Devotional (2)
 
-- [Andrew Wommack Devotional for July 25 2026 — Negatives Become Positives](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-25.html) — _PraiseJamzBlog_
-- [Rhapsody of Realities for 25 July 2026 — Three Important Provisions For Life’s Journey](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-25-july-2026.html) — _PraiseJamzBlog_
+- [Andrew Wommack Devotional for July 26 2026 — The Father&#39;s Love](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-26.html) — _PraiseJamzBlog_
+- [Rhapsody of Realities for 26 July 2026 — Grace And Truth Are Revealed In Him](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-26-july-2026.html) — _PraiseJamzBlog_
