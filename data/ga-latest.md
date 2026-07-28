@@ -1,26 +1,31 @@
-# GA Daily Report — 2026-07-27
+# GA Daily Report — 2026-07-28
 
-**6** new items from 7 Nigerian gospel blogs
+**11** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
+- SelahAfrik: 6
 - PraiseJamzBlog: 5
-- GMusicPlus: 1
 
 ### By Category
 
-## 🎵 New Music (3)
+## 🎵 New Music (7)
 
-- [[VIDEO] Greatman Takit - Super Cool](https://www.praisejamzblog.com/2026/07/video-greatman-takit-super-cool.html) — _PraiseJamzBlog_
-- [DOE Announces New Album Shiloh, Releases Powerful Worship Anthem “High Praise”](https://www.praisejamzblog.com/2026/07/doe-announces-new-album-shiloh-releases.html) — _PraiseJamzBlog_
-- [[MUSIC] Jon Reddick, CAIN - I Choose You](https://www.praisejamzblog.com/2026/07/music-jon-reddick-cain-i-choose-you.html) — _PraiseJamzBlog_
-
-## 💿 Album/EP (1)
-
-- ["Flames Of A Wildfire" - Greatman Takit Releases New Album &#124; Listen Here!](https://www.gmusicplus.com/flames-of-a-wildfire-greatman-takit-releases-new-album-listen-here/) — _GMusicPlus_
+- [#SelahMusicVid: Minister Lavic Shares Heartfelt Worship Expression In "Ya Yesu Na"](https://selahafrik.com/2026/07/ya-yesu-lavic/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=ya-yesu-lavic) — _SelahAfrik_
+- [#SelahMusicVid: Moyosore Abiodun &#124; Gbemiro](https://selahafrik.com/2026/07/gbemiro-moyosore-abiodun/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=gbemiro-moyosore-abiodun) — _SelahAfrik_
+- [#SelahMusicVid: Best Of African Praise Medley Showcases The Rich Heritage Of African Gospel Music](https://selahafrik.com/2026/07/best-african-praise-medley/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=best-african-praise-medley) — _SelahAfrik_
+- [#SelahMusicVid: Philip Olaomi &#124; Ha Jehovah [Audio + Video]](https://selahafrik.com/2026/07/jehovah-philip-olaomi/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=jehovah-philip-olaomi) — _SelahAfrik_
+- [[MUSIC] Yefter Nkansah - Yesu Do Yi](https://www.praisejamzblog.com/2026/07/music-yefter-nkansah-yesu-do-yi.html) — _PraiseJamzBlog_
+- [[MUSIC] Abbie Gamboa - Lean In](https://www.praisejamzblog.com/2026/07/abbie-gamboa-Lean In.html) — _PraiseJamzBlog_
+- [[ALBUM] Dr. Everett McBee - Better](https://www.praisejamzblog.com/2026/07/album-dr-everett-mcbee-better.html) — _PraiseJamzBlog_
 
 ## 📖 Devotional (2)
 
-- [Andrew Wommack Devotional for July 26 2026 — The Father&#39;s Love](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-26.html) — _PraiseJamzBlog_
-- [Rhapsody of Realities for 26 July 2026 — Grace And Truth Are Revealed In Him](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-26-july-2026.html) — _PraiseJamzBlog_
+- [Andrew Wommack Devotional for July 27 2027 — All The Wrong Reasons](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-26_01737714187.html) — _PraiseJamzBlog_
+- [Rhapsody of Realities for 27 July 2026 — His Amazing And All-promoting Grace](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-27-july-2026.html) — _PraiseJamzBlog_
+
+## 📢 News (2)
+
+- [‘9ja Bet Won’t Lead You To Financial Freedom’ — Bishop David Oyedepo Warns Nigerian Youths](https://selahafrik.com/2026/07/david-oyedepo-warns-youths/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=david-oyedepo-warns-youths) — _SelahAfrik_
+- [US Condemns Killing Of Rev. Ezekiel Dachomo'"'"'s Family, Demands Justice](https://selahafrik.com/2026/07/ezekiel-dachomos-family-killed/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=ezekiel-dachomos-family-killed) — _SelahAfrik_
