@@ -32,6 +32,11 @@ name: "Run"
         required: false
         default: "0"
         type: string
+      artists:
+        description: "Optional comma-separated exact artist names for a targeted discovery or refresh"
+        required: false
+        default: ""
+        type: string
       target_track_ids:
         description: "Optional comma-separated exact track IDs for a Spotify-only recovery"
         required: false
@@ -93,6 +98,7 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      NGMC_TARGET_ARTISTS: ${{ github.event.inputs.artists }}
       SPOTIFY_TARGET_TRACK_IDS: ${{ github.event.inputs.target_track_ids }}
       NGMC_JOB_RUN_ID: ${{ github.event.inputs.job_run_id }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id }}
