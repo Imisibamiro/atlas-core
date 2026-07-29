@@ -165,7 +165,7 @@ jobs:
             exit 1
           fi
 
-          RESPONSE=$(curl -sS -f -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
+          RESPONSE=$(curl -sS --max-time 30 -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
             -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
