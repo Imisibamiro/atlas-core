@@ -1,31 +1,38 @@
-# GA Daily Report — 2026-07-30
+# GA Daily Report — 2026-07-31
 
-**8** new items from 7 Nigerian gospel blogs
+**17** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelMinds: 4
-- PraiseJamzBlog: 4
+- SelahAfrik: 8
+- PraiseJamzBlog: 7
+- GospelMinds: 2
 
 ### By Category
 
-## 🎵 New Music (3)
+## 🎵 New Music (11)
 
-- [DOWNLOAD MP3: Paschal Nwafor - Open The Gate Way](https://gospelminds.com/audio-music/download-mp3-paschal-nwafor-open-the-gate-way/) — _GospelMinds_
-- [DOWNLOAD MP3: Sarah Wonders - It Is Well (Lyrics)](https://gospelminds.com/audio-music/mp3-sarah-wonders-it-is-well-lyrics/) — _GospelMinds_
-- [[VIDEO] Hezekiah Walker, Love Fellowship Choir - Favor](https://www.praisejamzblog.com/2026/07/Hezekiah Walker Love Fellowship Choir - Favor.html) — _PraiseJamzBlog_
-
-## 💿 Album/EP (1)
-
-- [[EP] JJ Heller - Everybody Hurts](https://www.praisejamzblog.com/2026/07/ep-jj-heller-everybody-hurts.html) — _PraiseJamzBlog_
+- [DOWNLOAD MP3: Ronkeji - My Worship](https://gospelminds.com/audio-music/download-mp3-ronkeji-my-worship/) — _GospelMinds_
+- [DOWNLOAD MP3: Yvonne E. - No Other Name](https://gospelminds.com/audio-music/download-mp3-yvonne-e-no-other-name/) — _GospelMinds_
+- [#SelahMusicVid: A Melody Of Surrender: Ronkeji'"'"'s "My Worship" Points Hearts To God](https://selahafrik.com/2026/07/worship-ronkeji/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=worship-ronkeji) — _SelahAfrik_
+- [#SelahMusicVid: Yvonne E. Releases Inspiring New Praise Anthem, "No Other Name"](https://selahafrik.com/2026/07/other-name-yvonne/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=other-name-yvonne) — _SelahAfrik_
+- [#SelahMusicVid: Victor Atenaga &#124; Fire (Live) &#124; Feat. Dunsin Oyekan](https://selahafrik.com/2026/07/fire-live-victor-atenaga/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=fire-live-victor-atenaga) — _SelahAfrik_
+- [#SelahMusicVid: Peter StoneCold &#124; Father Bless Me [Audio + Video]](https://selahafrik.com/2026/07/father-bless-peter-stonecold/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=father-bless-peter-stonecold) — _SelahAfrik_
+- [[MUSIC] Blossom Godgift - Someone Mightier (Yahweh Sabaoth)](https://www.praisejamzblog.com/2026/07/music-blossom-godgift-someone-mightier.html) — _PraiseJamzBlog_
+- [[VIDEO] Tate Butts - Hideaway](https://www.praisejamzblog.com/2026/07/video-tate-butts-hideaway.html) — _PraiseJamzBlog_
+- [[MUSIC] Stephen McWhirter, Michael Bethany - This One Refrain (Acoustic)](https://www.praisejamzblog.com/2026/07/music-stephen-mcwhirter-michael-bethany.html) — _PraiseJamzBlog_
+- [[MUSIC] Chapel Worship Collective - Let It Be Praise](https://www.praisejamzblog.com/2026/07/music-chapel-worship-collective-let-it.html) — _PraiseJamzBlog_
+- [[MUSIC] Jekalyn Carr - History (Breakthrough) Live Experience](https://www.praisejamzblog.com/2026/07/music-jekalyn-carr-history-breakthrough.html) — _PraiseJamzBlog_
 
 ## 📖 Devotional (2)
 
-- [Andrew Wommack Devotional for July 29 2027 — The Right Righteousness](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-29.html) — _PraiseJamzBlog_
-- [Rhapsody of Realities for 29 July 2026 — He’s In You And With You](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-29-july-2026.html) — _PraiseJamzBlog_
+- [Andrew Wommack Devotional for July 30 2027 — Alive Unto God](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-30.html) — _PraiseJamzBlog_
+- [Rhapsody of Realities for 30 July 2026 — The Reality Of His Benevolence](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-30-july-2026.html) — _PraiseJamzBlog_
 
-## 📢 News (2)
+## 📢 News (4)
 
-- [News: Oye Gabriel shower praises on her husband Mr. Gabriel](https://gospelminds.com/news/news-oye-gabriel-shower-praises-on-her-husband-mr-gabriel/) — _GospelMinds_
-- [Oye Gabriel: Oyesade Oyekole Gabriel Biography, Husband & Songs](https://gospelminds.com/biography/oye-gabriel-oyesade-oyekole-gabriel-biography-husband-songs/) — _GospelMinds_
+- [Nathaniel Bassey Hits 500 Million Spotify Streams, Marks Major Milestone](https://selahafrik.com/2026/07/nathaniel-bassey-million-streams/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=nathaniel-bassey-million-streams) — _SelahAfrik_
+- [AY Comedian Reveals Why He Stopped Attending Church Services](https://selahafrik.com/2026/07/ay-stopped-attending-church/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=ay-stopped-attending-church) — _SelahAfrik_
+- [Pastor Sarah Omakwu: "Even If Adeboye, Kumuyi, Oyedepo Divorce, It’s Still Wrong"](https://selahafrik.com/2026/07/sarah-omakwu-divorce-wrong/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=sarah-omakwu-divorce-wrong) — _SelahAfrik_
+- [Pentecostal Fellowship Of Nigeria Fires Back At Proposed Law To Stop Preaching In Commercial Vehicles](https://selahafrik.com/2026/07/preaching-banned-commercial-vehicles/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=preaching-banned-commercial-vehicles) — _SelahAfrik_
