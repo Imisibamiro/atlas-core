@@ -1,38 +1,40 @@
-# GA Daily Report — 2026-07-31
+# GA Daily Report — 2026-08-01
 
-**17** new items from 7 Nigerian gospel blogs
+**14** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- SelahAfrik: 8
-- PraiseJamzBlog: 7
+- PraiseJamzBlog: 8
 - GospelMinds: 2
+- SelahAfrik: 2
+- GMusicPlus: 1
+- PraiseWorldRadio: 1
 
 ### By Category
 
-## 🎵 New Music (11)
+## 🎵 New Music (8)
 
-- [DOWNLOAD MP3: Ronkeji - My Worship](https://gospelminds.com/audio-music/download-mp3-ronkeji-my-worship/) — _GospelMinds_
-- [DOWNLOAD MP3: Yvonne E. - No Other Name](https://gospelminds.com/audio-music/download-mp3-yvonne-e-no-other-name/) — _GospelMinds_
-- [#SelahMusicVid: A Melody Of Surrender: Ronkeji'"'"'s "My Worship" Points Hearts To God](https://selahafrik.com/2026/07/worship-ronkeji/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=worship-ronkeji) — _SelahAfrik_
-- [#SelahMusicVid: Yvonne E. Releases Inspiring New Praise Anthem, "No Other Name"](https://selahafrik.com/2026/07/other-name-yvonne/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=other-name-yvonne) — _SelahAfrik_
-- [#SelahMusicVid: Victor Atenaga &#124; Fire (Live) &#124; Feat. Dunsin Oyekan](https://selahafrik.com/2026/07/fire-live-victor-atenaga/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=fire-live-victor-atenaga) — _SelahAfrik_
-- [#SelahMusicVid: Peter StoneCold &#124; Father Bless Me [Audio + Video]](https://selahafrik.com/2026/07/father-bless-peter-stonecold/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=father-bless-peter-stonecold) — _SelahAfrik_
-- [[MUSIC] Blossom Godgift - Someone Mightier (Yahweh Sabaoth)](https://www.praisejamzblog.com/2026/07/music-blossom-godgift-someone-mightier.html) — _PraiseJamzBlog_
-- [[VIDEO] Tate Butts - Hideaway](https://www.praisejamzblog.com/2026/07/video-tate-butts-hideaway.html) — _PraiseJamzBlog_
-- [[MUSIC] Stephen McWhirter, Michael Bethany - This One Refrain (Acoustic)](https://www.praisejamzblog.com/2026/07/music-stephen-mcwhirter-michael-bethany.html) — _PraiseJamzBlog_
-- [[MUSIC] Chapel Worship Collective - Let It Be Praise](https://www.praisejamzblog.com/2026/07/music-chapel-worship-collective-let-it.html) — _PraiseJamzBlog_
-- [[MUSIC] Jekalyn Carr - History (Breakthrough) Live Experience](https://www.praisejamzblog.com/2026/07/music-jekalyn-carr-history-breakthrough.html) — _PraiseJamzBlog_
+- [Eno Michael Release "A Song for Africa" ft. Ibquake](https://www.gmusicplus.com/eno-michael-release-a-song-for-africa-ft-ibquake/) — _GMusicPlus_
+- [DOWNLOAD MP3: DavisKING - Eseun O](https://gospelminds.com/audio-music/download-mp3-davisking-eseun-o/) — _GospelMinds_
+- [MUSIC: Aldiner Laurent - Breathe On Me](https://www.praiseworldradio.com/aldiner-laurent-breathe-on-me/) — _PraiseWorldRadio_
+- [[MUSIC] Sarah Moses - So Will I (Emi Náà Yóò Yìn Ọ)](https://www.praisejamzblog.com/2026/07/sarah-moses-so-will-i.html) — _PraiseJamzBlog_
+- [[MUSIC] Gaise Baba & Milo - No Turning Back (French)](https://www.praisejamzblog.com/2026/07/music-gaise-baba-milo-no-turning-back.html) — _PraiseJamzBlog_
+- [[MUSIC] A Mose - Spirit Rhythm](https://www.praisejamzblog.com/2026/07/music-mose-spirit-rhythm.html) — _PraiseJamzBlog_
+- [[MUSIC] Kaestrings - Nasara](https://www.praisejamzblog.com/2026/07/music-kaestrings-nasara.html) — _PraiseJamzBlog_
+- [[MUSIC] Ebuka Songs - My True Existence (Live)](https://www.praisejamzblog.com/2026/07/music-ebuka-songs-my-true-existence-live.html) — _PraiseJamzBlog_
+
+## 💿 Album/EP (1)
+
+- [[EP] Festizie & Ajay Asika - The Plan](https://www.praisejamzblog.com/2026/07/ep-festizie-ajay-asika-plan.html) — _PraiseJamzBlog_
 
 ## 📖 Devotional (2)
 
-- [Andrew Wommack Devotional for July 30 2027 — Alive Unto God](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-30.html) — _PraiseJamzBlog_
-- [Rhapsody of Realities for 30 July 2026 — The Reality Of His Benevolence](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-30-july-2026.html) — _PraiseJamzBlog_
+- [Andrew Wommack Devotional for July 31 2027 — Build Faith, Destroy Doubt](https://www.praisejamzblog.com/2026/07/andrew-wommack-devotional-for-july-31.html) — _PraiseJamzBlog_
+- [Rhapsody of Realities for 31 July 2026 — Our Chief Informant](https://www.praisejamzblog.com/2026/07/rhapsody-of-realities-for-31-july-2026.html) — _PraiseJamzBlog_
 
-## 📢 News (4)
+## 📢 News (3)
 
-- [Nathaniel Bassey Hits 500 Million Spotify Streams, Marks Major Milestone](https://selahafrik.com/2026/07/nathaniel-bassey-million-streams/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=nathaniel-bassey-million-streams) — _SelahAfrik_
-- [AY Comedian Reveals Why He Stopped Attending Church Services](https://selahafrik.com/2026/07/ay-stopped-attending-church/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=ay-stopped-attending-church) — _SelahAfrik_
-- [Pastor Sarah Omakwu: "Even If Adeboye, Kumuyi, Oyedepo Divorce, It’s Still Wrong"](https://selahafrik.com/2026/07/sarah-omakwu-divorce-wrong/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=sarah-omakwu-divorce-wrong) — _SelahAfrik_
-- [Pentecostal Fellowship Of Nigeria Fires Back At Proposed Law To Stop Preaching In Commercial Vehicles](https://selahafrik.com/2026/07/preaching-banned-commercial-vehicles/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=preaching-banned-commercial-vehicles) — _SelahAfrik_
+- [Federal Court Dismisses Copyright Claim Against Sinach Over, Way Maker](https://gospelminds.com/news/federal-court-dismisses-copyright-claim-against-sinach-over-way-maker/) — _GospelMinds_
+- [Apostle Emmanuel Iren Addresses Whether Christian Women Should Wear Trousers](https://selahafrik.com/2026/07/women-shouldnt-wear-trousers/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=women-shouldnt-wear-trousers) — _SelahAfrik_
+- [Uebert Angel Jr Is Engaged! Proposes To Mikkela Fernando In Dubai](https://selahafrik.com/2026/07/uebert-angel-jr-engaged/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=uebert-angel-jr-engaged) — _SelahAfrik_
