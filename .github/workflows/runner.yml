@@ -925,35 +925,55 @@ jobs:
       - name: Finalize fanout
         run: node scripts/run.mjs
 
-      # Runner-side finalize — two steps: drain any pending snapshot writes from
-      # the Cloudflare admin-jobs queue, then trigger the worker's native recalc
-      # (worker scores relational D1 + persists the preview). No Supabase; no dump.
-      - name: Process snapshot queue
+      # The Cloudflare provider finalizer does not return a terminal run until the
+      # exact run-scoped raw ingest batch has settled into relational track_snapshots.
+      # Verify that durable receipt instead of invoking the retired legacy
+      # snapshot_write_queue processor, which requires the removed CORE_DB binding.
+      - name: Verify finalized snapshot batch
         if: env.RUNNER_DRY_RUN != 'true'
         run: |
           set -euo pipefail
-          CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
-          CLOUDFLARE_CHART_API_REFRESH_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
-          if [ -z "${CLOUDFLARE_CHART_API_URL}" ] || [ -z "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ]; then
+          CHART_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CHART_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          if [ -z "${CHART_URL}" ] || [ -z "${CHART_TOKEN}" ]; then
             echo "::error::CLOUDFLARE_CHART_API_URL or CLOUDFLARE_CHART_API_REFRESH_TOKEN missing from runner keys"
             exit 1
           fi
-          echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
-          (
-            cd .runner-bundle
-            CLOUDFLARE_CHART_API_URL="${CLOUDFLARE_CHART_API_URL}" \
-              CLOUDFLARE_CHART_API_REFRESH_TOKEN="${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
-              node --import tsx scripts/process-snapshot-write-queue.ts
-          )
+          echo "::add-mask::${CHART_TOKEN}"
+
+          RUN_ID_ENCODED=$(printf '%s' "${NGMC_REFRESH_RUN_ID}" | jq -sRr @uri)
+          STATUS_BODY=$(curl -sS -f --connect-timeout 10 --max-time 30 \
+            "${CHART_URL%/}/v1/admin/provider-refresh/status?run_id=${RUN_ID_ENCODED}" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Accept: application/json")
+
+          if ! printf '%s' "${STATUS_BODY}" | jq -e '
+            (.run.status == "completed" or .run.status == "completed_with_gaps" or .run.status == "dry_run_completed")
+            and (.run.finalizer_summary.verification.hasFreshSnapshot == true)
+            and (.run.finalizer_summary.verification.ingestStatus as $ingest
+              | $ingest.complete == true
+              and ($ingest.expected | tonumber) > 0
+              and ($ingest.total | tonumber) >= ($ingest.expected | tonumber)
+              and ($ingest.received | tonumber) == 0
+              and ($ingest.errors | tonumber) == 0)
+          ' >/dev/null; then
+            echo "::error::Provider refresh is terminal but its exact snapshot batch is not durably complete"
+            printf '%s' "${STATUS_BODY}" | jq '{status: .run.status, verification: .run.finalizer_summary.verification}'
+            exit 1
+          fi
+
+          printf '%s' "${STATUS_BODY}" | jq -r '
+            .run.finalizer_summary.verification.ingestStatus
+            | "snapshot batch verified: total=\(.total)/\(.expected), done=\(.done), pending=\(.pending), errors=\(.errors), snapshot_at=\(.snapshotAt)"
+          '
 
       - name: Wait for snapshot drain
         if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.skip_recalc != 'true' && vars.HOLD_RECALC != 'true'
         run: |
           set -euo pipefail
-          # Confirm the snapshot ingest queue has fully SETTLED into D1 before recalc
-          # scores. "Process snapshot queue" above triggers the drain, but the
-          # ngmc-snapshot-ingest consumer writes track_snapshots asynchronously, so rows
-          # can still be landing after that step returns. Scoring mid-drain builds a
+          # The exact run-scoped batch above is durable. Also confirm the relational
+          # snapshot table is quiescent before recalc, because unrelated queue writes can
+          # still be landing concurrently. Scoring mid-drain builds a
           # transient chart (2026-07-09: RAISE AM hit #1 mid-drain, then settled to #44
           # once the queue finished). Poll the worker's exact count+max-id cursor until
           # it holds steady, then let recalc proceed. Bounded ~4 min; degrades gracefully.
