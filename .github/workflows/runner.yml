@@ -947,9 +947,11 @@ jobs:
             -H "Authorization: Bearer ${CHART_TOKEN}" \
             -H "Accept: application/json")
 
+          # The exact run-scoped ingest receipt is authoritative here. Do not gate
+          # on the generic hasFreshSnapshot clock: long provider fanouts can make
+          # their pinned snapshot older than the finalizer job's start time.
           if ! printf '%s' "${STATUS_BODY}" | jq -e '
             (.run.status == "completed" or .run.status == "completed_with_gaps" or .run.status == "dry_run_completed")
-            and (.run.finalizer_summary.verification.hasFreshSnapshot == true)
             and (.run.finalizer_summary.verification.ingestStatus as $ingest
               | $ingest.complete == true
               and ($ingest.expected | tonumber) > 0
