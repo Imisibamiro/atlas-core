@@ -107,6 +107,8 @@ function cloudflareTargetEnv(jobName) {
   const normalized = String(jobName || "").trim();
   const isFanoutJob =
     normalized.startsWith("refresh-part:") ||
+    normalized.startsWith("album-refresh") ||
+    normalized === "album-catalogue-scan" ||
     normalized === "daily-refresh-fanout-start" ||
     normalized === "full-discovery-refresh-fanout-start" ||
     normalized === "daily-refresh-fanout-prepare" ||
