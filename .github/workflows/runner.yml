@@ -738,7 +738,8 @@ jobs:
     timeout-minutes: 300
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(github.event.inputs.job == 'album-refresh' && '{"include":[{"part":"p1","runner_job":"album-refresh-provider:youtube"},{"part":"p2","runner_job":"album-refresh-provider:audiomack"},{"part":"p3","runner_job":"album-refresh-provider:spotify"}]}' || '{"include":[{"part":"p1","runner_job":"refresh-part:p1"},{"part":"p2","runner_job":"refresh-part:p2"},{"part":"p3","runner_job":"refresh-part:p3"},{"part":"p4","runner_job":"refresh-part:p4"},{"part":"p5","runner_job":"refresh-part:p5"}]}') }}
+      max-parallel: 6
+      matrix: ${{ fromJSON(github.event.inputs.job == 'album-refresh' && '{"include":[{"part":"youtube-1","runner_job":"album-refresh-provider:youtube","shard_index":"0"},{"part":"youtube-2","runner_job":"album-refresh-provider:youtube","shard_index":"1"},{"part":"youtube-3","runner_job":"album-refresh-provider:youtube","shard_index":"2"},{"part":"youtube-4","runner_job":"album-refresh-provider:youtube","shard_index":"3"},{"part":"audiomack-1","runner_job":"album-refresh-provider:audiomack","shard_index":"0"},{"part":"audiomack-2","runner_job":"album-refresh-provider:audiomack","shard_index":"1"},{"part":"audiomack-3","runner_job":"album-refresh-provider:audiomack","shard_index":"2"},{"part":"audiomack-4","runner_job":"album-refresh-provider:audiomack","shard_index":"3"},{"part":"spotify-1","runner_job":"album-refresh-provider:spotify","shard_index":"0"},{"part":"spotify-2","runner_job":"album-refresh-provider:spotify","shard_index":"1"},{"part":"spotify-3","runner_job":"album-refresh-provider:spotify","shard_index":"2"},{"part":"spotify-4","runner_job":"album-refresh-provider:spotify","shard_index":"3"}]}' || '{"include":[{"part":"p1","runner_job":"refresh-part:p1"},{"part":"p2","runner_job":"refresh-part:p2"},{"part":"p3","runner_job":"refresh-part:p3"},{"part":"p4","runner_job":"refresh-part:p4"},{"part":"p5","runner_job":"refresh-part:p5"}]}') }}
     env:
       RUNNER_JOB: ${{ matrix.runner_job }}
       RUNNER_KEY_JOB: ${{ github.event.inputs.job == 'album-refresh' && 'album-collect' || matrix.runner_job }}
@@ -762,6 +763,8 @@ jobs:
       # broker value, which can otherwise leave every provider shard with no id.
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
       NGMC_ALBUM_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      NGMC_ALBUM_REFRESH_SHARD_INDEX: ${{ matrix.shard_index || '0' }}
+      NGMC_ALBUM_REFRESH_SHARD_COUNT: ${{ github.event.inputs.job == 'album-refresh' && '4' || '1' }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
