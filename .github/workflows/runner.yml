@@ -42,6 +42,11 @@ name: "Run"
         required: false
         default: '[""]'
         type: string
+      target_album_ids:
+        description: "Optional comma-separated exact private album IDs for a bounded album evidence refresh"
+        required: false
+        default: ""
+        type: string
       target_track_ids:
         description: "Optional comma-separated exact track IDs for a Spotify-only recovery"
         required: false
@@ -110,6 +115,7 @@ jobs:
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       NGMC_TARGET_ARTISTS: ${{ matrix.artist_shard || github.event.inputs.artists }}
+      NGMC_TARGET_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
       # A full album fanout runs two shards at once, with three artists per
       # shard. Total collector pressure therefore remains at the established
       # six-artist ceiling used by a normal targeted album run.
@@ -626,6 +632,7 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      NGMC_TARGET_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
       NGMC_REFRESH_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
       SCRAPER_DB_TARGET: cloudflare
