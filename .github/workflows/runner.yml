@@ -108,7 +108,7 @@ jobs:
         artist_shard: ${{ fromJSON(github.event.inputs.artist_shards || '[""]') }}
     env:
       RUNNER_JOB: ${{ github.event.inputs.job }}
-      RUNNER_KEY_JOB: ${{ github.event.inputs.job == 'album-catalogue-scan' && 'album-collect' || github.event.inputs.job }}
+      RUNNER_KEY_JOB: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job }}
       RUNNER_SOURCE: ${{ github.event.inputs.source }}
       RUNNER_CRON: ${{ github.event.inputs.cron }}
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
