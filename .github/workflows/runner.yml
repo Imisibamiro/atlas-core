@@ -52,6 +52,11 @@ name: "Run"
         required: false
         default: ""
         type: string
+      target_album_ids:
+        description: "Optional comma-separated exact album IDs for a targeted album refresh"
+        required: false
+        default: ""
+        type: string
       job_run_id:
         description: "Optional Cloudflare/admin job id to report back against"
         required: false
@@ -122,6 +127,7 @@ jobs:
       ALBUM_COLLECTOR_ATLAS_CONCURRENCY: ${{ matrix.artist_shard && '3' || '6' }}
       ALBUM_COLLECTOR_DEFER_FINALIZE: ${{ matrix.artist_shard && '1' || '0' }}
       SPOTIFY_TARGET_TRACK_IDS: ${{ github.event.inputs.target_track_ids }}
+      NGMC_TARGET_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
       NGMC_JOB_RUN_ID: ${{ github.event.inputs.job_run_id }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id }}
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.job_run_id }}
