@@ -52,11 +52,6 @@ name: "Run"
         required: false
         default: ""
         type: string
-      target_album_ids:
-        description: "Optional comma-separated exact album IDs for a targeted album refresh"
-        required: false
-        default: ""
-        type: string
       job_run_id:
         description: "Optional Cloudflare/admin job id to report back against"
         required: false
@@ -120,7 +115,6 @@ jobs:
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       NGMC_TARGET_ARTISTS: ${{ matrix.artist_shard || github.event.inputs.artists }}
-      NGMC_TARGET_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
       # A full album fanout runs two shards at once, with three artists per
       # shard. Total collector pressure therefore remains at the established
       # six-artist ceiling used by a normal targeted album run.
