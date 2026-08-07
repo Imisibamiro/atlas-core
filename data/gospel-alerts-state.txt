@@ -418,3 +418,7 @@ SelahAfrik|https://selahafrik.com/?p=130014
 SelahAfrik|https://selahafrik.com/?p=130012
 SelahAfrik|https://selahafrik.com/?p=130010
 PraiseWorldRadio|https://www.praiseworldradio.com/?p=362187
+GospelHotspot|https://gospelhotspot.net/?p=85419
+GospelMinds|https://gospelminds.com/?p=86661
+GospelMinds|https://gospelminds.com/?p=86658
+GospelMinds|https://gospelminds.com/?p=86655
