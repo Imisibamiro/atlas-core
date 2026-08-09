@@ -1,24 +1,27 @@
-# GA Daily Report — 2026-08-08
+# GA Daily Report — 2026-08-09
 
-**8** new items from 7 Nigerian gospel blogs
+**9** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- SelahAfrik: 8
+- GospelMinds: 4
+- GospelHotspot: 3
+- GMusicPlus: 2
 
 ### By Category
 
-## 🎵 New Music (6)
+## 🎵 New Music (8)
 
-- [#SelahMusicVid: Joshua Oyetunde'"'"'s "E To Bi (You Are Great)" Declares The Wonders Of God](https://selahafrik.com/2026/08/e-to-bi-joshua-oyetunde/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=e-to-bi-joshua-oyetunde) — _SelahAfrik_
-- [#SelahMusicVid: Anointed Peace Unveils "Psalmist God," A Celebration Of God'"'"'s Greatness](https://selahafrik.com/2026/08/psalmist-god-anointed-peace/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=psalmist-god-anointed-peace) — _SelahAfrik_
-- [#SelahMusicVid: Chinwe Ibe &#124; Hallelujah [Audio + Video]](https://selahafrik.com/2026/08/hallelujah-chinwe-ibe/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=hallelujah-chinwe-ibe) — _SelahAfrik_
-- [#SelahMusicVid: Step Into Your New Season With Olateju M. Ibiyomi'"'"'s "New Beginning"](https://selahafrik.com/2026/08/beginning-olateju-ibiyomi/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=beginning-olateju-ibiyomi) — _SelahAfrik_
-- [#SelahMusicVid: Peter Gabriels Invites Believers Into Deeper Trust With "Don'"'"'t Leave Me Lord"](https://selahafrik.com/2026/08/leave-lord-peter-gabriels/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=leave-lord-peter-gabriels) — _SelahAfrik_
-- [Gospel Powerhouse Anny Drops Vibrant New Visual For Single “Take The Praise” &#124; @anny_sings](https://selahafrik.com/2026/08/anny-take-the-praise-official-video/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=anny-take-the-praise-official-video) — _SelahAfrik_
+- [[Music + Lyrics] Psalmist God - Anointed Peace](https://gospelhotspot.net/music-lyrics-psalmist-god-anointed-peace/) — _GospelHotspot_
+- [Good (Psalms 145) - Toluwanimee](https://gospelhotspot.net/good-psalms-145-toluwanimee/) — _GospelHotspot_
+- [[Music + Video] Take The Praise - Anny](https://gospelhotspot.net/music-video-take-the-praise-anny/) — _GospelHotspot_
+- [“GOOD (Psalms 145)” — Toluwanimee Releases New Worship Song](https://www.gmusicplus.com/good-psalms-145-toluwanimee-releases-new-worship-song/) — _GMusicPlus_
+- [MP3: Toluwanimee - GOOD (Psalms 145)](https://gospelminds.com/audio-music/mp3-toluwanimee-good-psalms-145/) — _GospelMinds_
+- [MUSIC VIDEO: No More There - John Cando](https://gospelminds.com/music-video/music-video-no-more-there-john-cando/) — _GospelMinds_
+- [DOWNLOAD MP3: Dr. Lilian Smart - Mighty Warrior](https://gospelminds.com/audio-music/download-mp3-dr-lilian-smart-mighty-warrior/) — _GospelMinds_
+- [DOWNLOAD MP3: Anny - Take The Praise (Video)](https://gospelminds.com/audio-music/mp3-anny-take-the-praise/) — _GospelMinds_
 
-## 📢 News (2)
+## 💿 Album/EP (1)
 
-- [Violence Erupts As 17-Year-Old Christian Activist, Young Bob Assaulted During Public Debate In Manchester](https://selahafrik.com/2026/08/activist-young-bob-assaulted/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=activist-young-bob-assaulted) — _SelahAfrik_
-- [Prophet Isa El-Buba & Wife Commissions Newly Built Security Posts In Jos](https://selahafrik.com/2026/08/prophet-isa-security-posts/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=prophet-isa-security-posts) — _SelahAfrik_
+- [Tasha Cobbs Leonard Announces ‘TASHA UNSCRIPTED’ Live Album for September 11](https://www.gmusicplus.com/tasha-cobbs-leonard-announces-tasha-unscripted-live-album-for-september-11/) — _GMusicPlus_
