@@ -1,27 +1,26 @@
-# GA Daily Report — 2026-08-09
+# GA Daily Report — 2026-08-11
 
-**9** new items from 7 Nigerian gospel blogs
+**5** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelMinds: 4
-- GospelHotspot: 3
+- GospelHotspot: 2
 - GMusicPlus: 2
+- PraiseWorldRadio: 1
 
 ### By Category
 
-## 🎵 New Music (8)
+## 🎵 New Music (2)
 
-- [[Music + Lyrics] Psalmist God - Anointed Peace](https://gospelhotspot.net/music-lyrics-psalmist-god-anointed-peace/) — _GospelHotspot_
-- [Good (Psalms 145) - Toluwanimee](https://gospelhotspot.net/good-psalms-145-toluwanimee/) — _GospelHotspot_
-- [[Music + Video] Take The Praise - Anny](https://gospelhotspot.net/music-video-take-the-praise-anny/) — _GospelHotspot_
-- [“GOOD (Psalms 145)” — Toluwanimee Releases New Worship Song](https://www.gmusicplus.com/good-psalms-145-toluwanimee-releases-new-worship-song/) — _GMusicPlus_
-- [MP3: Toluwanimee - GOOD (Psalms 145)](https://gospelminds.com/audio-music/mp3-toluwanimee-good-psalms-145/) — _GospelMinds_
-- [MUSIC VIDEO: No More There - John Cando](https://gospelminds.com/music-video/music-video-no-more-there-john-cando/) — _GospelMinds_
-- [DOWNLOAD MP3: Dr. Lilian Smart - Mighty Warrior](https://gospelminds.com/audio-music/download-mp3-dr-lilian-smart-mighty-warrior/) — _GospelMinds_
-- [DOWNLOAD MP3: Anny - Take The Praise (Video)](https://gospelminds.com/audio-music/mp3-anny-take-the-praise/) — _GospelMinds_
+- [“Don'"'"'t Leave Me Lord” — Peter Gabriels Drops New Single](https://www.gmusicplus.com/dont-leave-me-lord-peter-gabriels-drops-new-single/) — _GMusicPlus_
+- [MUSIC: Joshua Oyetunde - E TÓ BI (You Are Great)](https://www.praiseworldradio.com/joshua-oyetunde-e-to-bi-you-are-great/) — _PraiseWorldRadio_
 
-## 💿 Album/EP (1)
+## 📖 Devotional (2)
 
-- [Tasha Cobbs Leonard Announces ‘TASHA UNSCRIPTED’ Live Album for September 11](https://www.gmusicplus.com/tasha-cobbs-leonard-announces-tasha-unscripted-live-album-for-september-11/) — _GMusicPlus_
+- [Seeds Of Destiny Devotional - The Vastness Of Divine Resources](https://gospelhotspot.net/seeds-of-destiny-devotional-the-vastness-of-divine-resources/) — _GospelHotspot_
+- [DCLM Daily Manna - A Pivotal Moment](https://gospelhotspot.net/dclm-daily-manna-a-pivotal-moment/) — _GospelHotspot_
+
+## 📢 News (1)
+
+- [“Psalmist God” — Anointed Peace Releases New Worship Single](https://www.gmusicplus.com/psalmist-god-anointed-peace-releases-new-worship-single/) — _GMusicPlus_
