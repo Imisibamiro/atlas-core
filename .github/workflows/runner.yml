@@ -100,7 +100,10 @@ jobs:
   run:
     if: ${{ github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    # Full Discovery scans the seeded catalogue end-to-end. It has its own
+    # bounded timeout so a slow provider cannot terminate a healthy scan at
+    # the generic runner cap.
+    timeout-minutes: ${{ github.event.inputs.job == 'full-discovery' && 360 || 180 }}
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -114,6 +117,12 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      # The legacy recovery workflow safely operates up to eight discovery
+      # shards concurrently, with two artists per shard. Keep this monolithic
+      # Atlas path below that established provider-pressure ceiling while
+      # avoiding a multi-hour queue at the generic two-artist default.
+      ARTIST_DISCOVERY_CONCURRENCY: ${{ github.event.inputs.job == 'full-discovery' && '8' || '2' }}
+      RUNNER_TIMEOUT_MS: ${{ github.event.inputs.job == 'full-discovery' && '21000000' || '10800000' }}
       NGMC_TARGET_ARTISTS: ${{ matrix.artist_shard || github.event.inputs.artists }}
       # A full album fanout runs two shards at once, with three artists per
       # shard. Total collector pressure therefore remains at the established
