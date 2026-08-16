@@ -97,8 +97,87 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  plan-full-discovery-shards:
+    if: ${{ github.event.inputs.job == 'full-discovery' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    env:
+      RUNNER_KEY_JOB: full-discovery
+      DISCOVERY_ARTIST_FILTER: ${{ github.event.inputs.artists }}
+      DISCOVERY_SHARD_COUNT: "8"
+      KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install root deps
+        run: npm install --omit=dev
+
+      - name: Request OIDC token
+        id: oidc
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -sS -f --max-time 20 \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner")
+          OIDC_TOKEN=$(printf '%s' "$RESPONSE" | jq -r '.value // empty')
+          test -n "${OIDC_TOKEN}"
+          echo "::add-mask::${OIDC_TOKEN}"
+          echo "oidc_token=${OIDC_TOKEN}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fetch configuration
+        run: |
+          set -euo pipefail
+          test -n "${KEY_BROKER_URL}"
+          RESPONSE=$(curl -sS -f --max-time 30 -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{"job":"full-discovery"}')
+          test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
+          KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
+          umask 077
+          echo "${RESPONSE}" | jq -c '.keys // {}' > "${KEY_FILE}"
+          echo "RUNNER_KEY_FILE=${KEY_FILE}" >> "${GITHUB_ENV}"
+
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p .runner-bundle
+          node scripts/fetch-runner-bundle.mjs
+          tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
+
+      - name: Install bundle deps
+        run: |
+          set -euo pipefail
+          if [ -f .runner-bundle/package-lock.json ]; then
+            npm ci --omit=dev --prefix .runner-bundle
+          elif [ -f .runner-bundle/package.json ]; then
+            npm install --omit=dev --prefix .runner-bundle
+          fi
+
+      - name: Build balanced discovery shard matrix
+        id: plan
+        run: |
+          set -euo pipefail
+          MATRIX="$(node scripts/plan-full-discovery-shards.mjs)"
+          echo "${MATRIX}" | jq -e '.include | length >= 1 and length <= 8' >/dev/null
+          echo "${MATRIX}"
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+
   run:
-    if: ${{ github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' }}
+    needs: plan-full-discovery-shards
+    if: ${{ always() && github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' && (github.event.inputs.job != 'full-discovery' || needs.plan-full-discovery-shards.result == 'success') }}
+    name: ${{ github.event.inputs.job == 'full-discovery' && format('discovery-scan ({0}, {1} artists, {2} work)', matrix.shard, matrix.artist_count, matrix.estimated_work) || 'run' }}
     runs-on: ubuntu-latest
     # Full Discovery scans the seeded catalogue end-to-end. It has its own
     # bounded timeout so a slow provider cannot terminate a healthy scan at
@@ -106,9 +185,8 @@ jobs:
     timeout-minutes: ${{ github.event.inputs.job == 'full-discovery' && 360 || 180 }}
     strategy:
       fail-fast: false
-      max-parallel: 2
-      matrix:
-        artist_shard: ${{ fromJSON(github.event.inputs.artist_shards || '[""]') }}
+      max-parallel: ${{ github.event.inputs.job == 'full-discovery' && 8 || 2 }}
+      matrix: ${{ fromJSON(github.event.inputs.job == 'full-discovery' && needs.plan-full-discovery-shards.outputs.matrix || format('{{"artist_shard":{0}}}', github.event.inputs.artist_shards || '[""]')) }}
     env:
       RUNNER_JOB: ${{ github.event.inputs.job }}
       RUNNER_KEY_JOB: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job }}
@@ -117,13 +195,13 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
-      # The legacy recovery workflow safely operates up to eight discovery
-      # shards concurrently, with two artists per shard. Keep this monolithic
-      # Atlas path below that established provider-pressure ceiling while
-      # avoiding a multi-hour queue at the generic two-artist default.
-      ARTIST_DISCOVERY_CONCURRENCY: ${{ github.event.inputs.job == 'full-discovery' && '8' || '2' }}
+      # Full Discovery runs up to eight explicit, non-overlapping matrix shards.
+      # Each shard keeps provider pressure at the established two-artist ceiling.
+      ARTIST_DISCOVERY_CONCURRENCY: "2"
       RUNNER_TIMEOUT_MS: ${{ github.event.inputs.job == 'full-discovery' && '21000000' || '10800000' }}
       NGMC_TARGET_ARTISTS: ${{ matrix.artist_shard || github.event.inputs.artists }}
+      NGMC_TARGET_ARTIST_IDS: ${{ matrix.artist_ids || '' }}
+      NGMC_DISCOVERY_SHARD: ${{ matrix.shard || '' }}
       # A full album fanout runs two shards at once, with three artists per
       # shard. Total collector pressure therefore remains at the established
       # six-artist ceiling used by a normal targeted album run.
@@ -379,6 +457,51 @@ jobs:
           else
             echo "::warning::Broker report rejected (HTTP ${REPORT_STATUS}); not failing the job"
           fi
+
+  full-discovery-classifier-handoff:
+    needs: [plan-full-discovery-shards, run]
+    if: ${{ github.event.inputs.job == 'full-discovery' && needs.plan-full-discovery-shards.result == 'success' && needs.run.result == 'success' && github.event.inputs.dry_run != 'true' && github.event.inputs.artists == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
+    steps:
+      - name: Request OIDC token
+        id: oidc
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -sS -f --max-time 20 \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=atlas-runner")
+          OIDC_TOKEN=$(printf '%s' "$RESPONSE" | jq -r '.value // empty')
+          test -n "${OIDC_TOKEN}"
+          echo "::add-mask::${OIDC_TOKEN}"
+          echo "oidc_token=${OIDC_TOKEN}" >> "${GITHUB_OUTPUT}"
+
+      - name: Queue classifier after all discovery shards
+        run: |
+          set -euo pipefail
+          test -n "${KEY_BROKER_URL}"
+          RESPONSE=$(curl -sS -f --max-time 30 -X POST "${KEY_BROKER_URL%/}/v1/internal/runner/keys" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{"job":"full-discovery"}')
+          test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
+          CHART_URL=$(echo "${RESPONSE}" | jq -r '.keys.CLOUDFLARE_CHART_API_URL // .keys.CHART_API_WORKER_URL // .keys.CHART_API_URL // ""')
+          CHART_TOKEN=$(echo "${RESPONSE}" | jq -r '.keys.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .keys.CHART_API_REFRESH_TOKEN // .keys.CHART_API_TOKEN // ""')
+          test -n "${CHART_URL}"
+          test -n "${CHART_TOKEN}"
+          echo "::add-mask::${CHART_TOKEN}"
+          HANDOFF=$(curl -sS -f --max-time 60 -X POST "${CHART_URL%/}/v1/admin/jobs/classifier-classify" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{"batchSize":500,"source":"atlas-full-discovery-handoff"}')
+          echo "${HANDOFF}"
+          JOB_ID=$(echo "${HANDOFF}" | jq -r '.jobId // .result.summary.jobId // ""')
+          test -n "${JOB_ID}"
+          echo "Classifier queued after all discovery shards: ${JOB_ID}"
 
   album-finalize:
     needs: run
