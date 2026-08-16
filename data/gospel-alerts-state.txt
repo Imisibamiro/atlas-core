@@ -468,3 +468,7 @@ SelahAfrik|https://selahafrik.com/?p=130108
 SelahAfrik|https://selahafrik.com/?p=130104
 SelahAfrik|https://selahafrik.com/?p=130101
 SelahAfrik|https://selahafrik.com/?p=130089
+GospelHotspot|https://gospelhotspot.net/?p=85454
+GospelHotspot|https://gospelhotspot.net/?p=85452
+GospelMinds|https://gospelminds.com/?p=86702
+GospelMinds|https://gospelminds.com/?p=86697
