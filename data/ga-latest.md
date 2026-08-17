@@ -1,21 +1,25 @@
-# GA Daily Report — 2026-08-16
+# GA Daily Report — 2026-08-17
 
-**4** new items from 7 Nigerian gospel blogs
+**5** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelHotspot: 2
-- GospelMinds: 2
+- GospelMinds: 4
+- GMusicPlus: 1
 
 ### By Category
 
-## 🎵 New Music (2)
+## 🎵 New Music (3)
 
-- [MP3: Bro Jude C - Igba Ndi Amuma (Strings Of The Prophets)](https://gospelminds.com/audio-music/mp3-bro-jude-c-igba-ndi-amuma-strings-of-the-prophets/) — _GospelMinds_
-- [AUDIO + VIDEO: Miracle God - Mr. D.David](https://gospelminds.com/audio-music/mp3-mp4-miracle-god-mr-d-david/) — _GospelMinds_
+- [Mr. D.David Drops New Album, “Special" – A Soul-Stirring Collection of Faith and Worship](https://gospelminds.com/audio-music/mr-d-david-drops-new-album-special-a-soul-stirring-collection-of-faith-and-worship/) — _GospelMinds_
+- [DOWNLOAD MP3: Nathaniel Bassey - The Battle Belongs To God](https://gospelminds.com/audio-music/nathaniel-bassey-the-battle-belongs-to-god/) — _GospelMinds_
+- [DOWNLOAD MP3: Frank Edwards - Elevate (Video)](https://gospelminds.com/audio-music/mp3-frank-edwards-elevate/) — _GospelMinds_
 
-## 📖 Devotional (2)
+## 💿 Album/EP (1)
 
-- [Seeds Of Destiny Devotional - Financial Dominion For Kingdom Advancement](https://gospelhotspot.net/seeds-of-destiny-devotional-financial-dominion-for-kingdom-advancement/) — _GospelHotspot_
-- [DCLM Daily Manna - Blight Of Ingratitude](https://gospelhotspot.net/dclm-daily-manna-blight-of-ingratitude/) — _GospelHotspot_
+- [“The Life Recording” — Nathaniel Bassey Releases New Album](https://www.gmusicplus.com/the-life-recording-nathaniel-bassey-releases-new-album/) — _GMusicPlus_
+
+## 📢 News (1)
+
+- [SYNERGY 8.0 is coming, Organised by Evans Ogboi: Belisa John Will Be There](https://gospelminds.com/news/synergy-8-0-is-coming-organised-by-evans-ogboi-belisa-john-will-be-there/) — _GospelMinds_
