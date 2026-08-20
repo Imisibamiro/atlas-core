@@ -176,7 +176,7 @@ jobs:
 
   run:
     needs: plan-full-discovery-shards
-    if: ${{ always() && github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' && (github.event.inputs.job != 'full-discovery' || needs.plan-full-discovery-shards.result == 'success') }}
+    if: ${{ always() && github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' && github.event.inputs.job != 'repair-baselined-metrics-2026-08-20' && (github.event.inputs.job != 'full-discovery' || needs.plan-full-discovery-shards.result == 'success') }}
     name: ${{ github.event.inputs.job == 'full-discovery' && format('discovery-scan ({0}, {1} artists, {2} work)', matrix.shard, matrix.artist_count, matrix.estimated_work) || 'run' }}
     runs-on: ubuntu-latest
     # Full Discovery scans the seeded catalogue end-to-end. It has its own
@@ -602,7 +602,7 @@ jobs:
         run: node scripts/run.mjs
 
   recalculate:
-    if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
+    if: ${{ github.event.inputs.job == 'recalculate-live-chart' || github.event.inputs.job == 'repair-baselined-metrics-2026-08-20' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -619,6 +619,7 @@ jobs:
       RECALC_DB_TARGET: cloudflare
       NGMC_CORE_READ_TARGET: d1
       NGMC_CORE_WRITE_TARGET: d1
+      RUNNER_KEY_JOB: ${{ github.event.inputs.job == 'repair-baselined-metrics-2026-08-20' && 'recalculate-live-chart' || github.event.inputs.job }}
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
     steps:
       - name: Checkout
@@ -670,7 +671,7 @@ jobs:
             -H "Authorization: Bearer ${{ steps.oidc.outputs.oidc_token }}" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json" \
-            -d "{\"job\": \"${{ github.event.inputs.job }}\"}")
+            -d "{\"job\": \"${RUNNER_KEY_JOB}\"}")
           test "$(echo "${RESPONSE}" | jq -r '.ok // false')" = "true"
           KEY_FILE="${RUNNER_TEMP}/runner-keys.json"
           umask 077
@@ -685,6 +686,7 @@ jobs:
           echo "RUNNER_SUMMARY_FILE=${RUNNER_TEMP}/runner-summary.json" >> "${GITHUB_ENV}"
 
       - name: Fetch runner bundle
+        if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
         id: runner-bundle
         env:
           RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
@@ -695,6 +697,7 @@ jobs:
           tar -xzf /tmp/runner-bundle.tgz -C .runner-bundle
 
       - name: Install bundle deps
+        if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
         run: |
           set -euo pipefail
           if [ -f .runner-bundle/package-lock.json ]; then
@@ -709,6 +712,7 @@ jobs:
       # result (the worker's 300s CPU budget covers the recalc).
       - name: Recalculate live chart
         id: recalc
+        if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
         run: |
           set -euo pipefail
           CLOUDFLARE_CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
@@ -749,6 +753,100 @@ jobs:
           echo "::error::Recalc script exited with ${RECALC_EXIT_CODE} after ${ELAPSED}s"
           echo "recalc_exit=${RECALC_EXIT_CODE}" >> "${GITHUB_OUTPUT}"
           exit "${RECALC_EXIT_CODE}"
+
+      - name: Repair approved historical metric receipts
+        if: ${{ github.event.inputs.job == 'repair-baselined-metrics-2026-08-20' }}
+        run: |
+          set -euo pipefail
+          CHART_API_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CHART_API_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          test -n "${CHART_API_URL}"
+          test -n "${CHART_API_TOKEN}"
+          echo "::add-mask::${CHART_API_TOKEN}"
+
+          REPAIR_BODY=$(jq -cn '{
+            source: "historical-metric-repair:2026-08-20",
+            runId: "repair-baselined-metrics-2026-08-20",
+            snapshots: [
+              {
+                track_id: "8b419943-bdc3-4eaf-9fa1-5e7ada981332",
+                snapshot_at: "2026-08-17T19:30:46.743Z",
+                youtube_views: 293722,
+                youtube_last_checked_at: "2026-08-17T20:04:58.615Z",
+                audiomack_plays: 4613,
+                audiomack_last_checked_at: "2026-08-17T19:42:40.369Z",
+                spotify_streams: 13605,
+                spotify_last_verified_at: "2026-08-17T19:43:02.189Z"
+              },
+              {
+                track_id: "8b419943-bdc3-4eaf-9fa1-5e7ada981332",
+                snapshot_at: "2026-08-20T19:30:57.858Z",
+                youtube_views: 465674,
+                youtube_last_checked_at: "2026-08-20T20:08:28.698Z",
+                audiomack_plays: 9034,
+                audiomack_last_checked_at: "2026-08-20T19:42:36.790Z",
+                spotify_streams: 21396,
+                spotify_last_verified_at: "2026-08-20T19:44:05.683Z"
+              },
+              {
+                track_id: "16d31f47-f6df-4b7d-9608-d8068f2657e2",
+                snapshot_at: "2026-08-20T19:30:57.858Z",
+                youtube_views: 200932,
+                youtube_last_checked_at: "2026-08-20T20:08:28.697Z",
+                audiomack_plays: 26391,
+                audiomack_last_checked_at: "2026-08-20T19:37:14.806Z",
+                spotify_streams: 99848,
+                spotify_last_verified_at: "2026-08-20T19:44:07.212Z"
+              }
+            ]
+          }')
+
+          HTTP_CODE=$(curl -sS -X POST "${CHART_API_URL%/}/v1/admin/snapshots/enqueue" \
+            -H "Authorization: Bearer ${CHART_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "${REPAIR_BODY}" \
+            -o /tmp/historical-metric-repair-enqueue.json -w '%{http_code}')
+          test "${HTTP_CODE}" = "200"
+          jq -e '.ok == true and .summary.accepted == 3 and .summary.invalid == 0' /tmp/historical-metric-repair-enqueue.json
+
+          QUERY_BODY=$(jq -cn '{
+            table: "track_daily_metrics",
+            operation: "select",
+            selectedColumns: ["id", "views_delta", "youtube_delta", "validation_notes"],
+            filters: [{
+              column: "id",
+              type: "in",
+              value: [
+                "8b419943-bdc3-4eaf-9fa1-5e7ada981332:2026-08-17",
+                "8b419943-bdc3-4eaf-9fa1-5e7ada981332:2026-08-20",
+                "16d31f47-f6df-4b7d-9608-d8068f2657e2:2026-08-20"
+              ]
+            }]
+          }')
+
+          for attempt in $(seq 1 24); do
+            HTTP_CODE=$(curl -sS -X POST "${CHART_API_URL%/}/v1/admin/core-query" \
+              -H "Authorization: Bearer ${CHART_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data "${QUERY_BODY}" \
+              -o /tmp/historical-metric-repair-verify.json -w '%{http_code}')
+            test "${HTTP_CODE}" = "200"
+            if jq -e '
+              .ok == true
+              and .count == 3
+              and ([.data[] | select(.id == "8b419943-bdc3-4eaf-9fa1-5e7ada981332:2026-08-17" and .views_delta == 98763 and .youtube_delta == 98763 and (.validation_notes | contains("youtube_family_baseline:14")) and (contains("correction_baseline_only") | not))] | length == 1)
+              and ([.data[] | select(.id == "8b419943-bdc3-4eaf-9fa1-5e7ada981332:2026-08-20" and .views_delta == 135752 and .youtube_delta == 135752 and (.validation_notes | contains("correction_baseline_only") | not))] | length == 1)
+              and ([.data[] | select(.id == "16d31f47-f6df-4b7d-9608-d8068f2657e2:2026-08-20" and .views_delta == 58121 and .youtube_delta == 58121 and (.validation_notes | contains("correction_baseline_only") | not))] | length == 1)
+            ' /tmp/historical-metric-repair-verify.json; then
+              echo "Historical metric repair verified on attempt ${attempt}."
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "::error::Historical metric repair did not complete within two minutes"
+          cat /tmp/historical-metric-repair-verify.json
+          exit 1
 
   prepare-fanout:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'album-refresh' }}
