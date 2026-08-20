@@ -834,9 +834,9 @@ jobs:
             if jq -e '
               .ok == true
               and .count == 3
-              and ([.data[] | select(.id == "8b419943-bdc3-4eaf-9fa1-5e7ada981332:2026-08-17" and .views_delta == 98763 and .youtube_delta == 98763 and (.validation_notes | contains("youtube_family_baseline:14")) and (contains("correction_baseline_only") | not))] | length == 1)
-              and ([.data[] | select(.id == "8b419943-bdc3-4eaf-9fa1-5e7ada981332:2026-08-20" and .views_delta == 135752 and .youtube_delta == 135752 and (.validation_notes | contains("correction_baseline_only") | not))] | length == 1)
-              and ([.data[] | select(.id == "16d31f47-f6df-4b7d-9608-d8068f2657e2:2026-08-20" and .views_delta == 58121 and .youtube_delta == 58121 and (.validation_notes | contains("correction_baseline_only") | not))] | length == 1)
+              and ([.data[] | select(.id == "8b419943-bdc3-4eaf-9fa1-5e7ada981332:2026-08-17" and .views_delta == 98763 and .youtube_delta == 98763 and (.validation_notes | contains("youtube_family_baseline:14")) and ((.validation_notes | contains("correction_baseline_only")) | not))] | length == 1)
+              and ([.data[] | select(.id == "8b419943-bdc3-4eaf-9fa1-5e7ada981332:2026-08-20" and .views_delta == 135752 and .youtube_delta == 135752 and ((.validation_notes | contains("correction_baseline_only")) | not))] | length == 1)
+              and ([.data[] | select(.id == "16d31f47-f6df-4b7d-9608-d8068f2657e2:2026-08-20" and .views_delta == 58121 and .youtube_delta == 58121 and ((.validation_notes | contains("correction_baseline_only")) | not))] | length == 1)
             ' /tmp/historical-metric-repair-verify.json; then
               echo "Historical metric repair verified on attempt ${attempt}."
               exit 0
