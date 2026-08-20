@@ -82,6 +82,16 @@ name: "Run"
         required: false
         default: "false"
         type: string
+      recalculate_mode:
+        description: "Optional native recalc mode: daily (default) or weekly-close"
+        required: false
+        default: "daily"
+        type: string
+      chart_week:
+        description: "Optional YYYY-MM-DD issue week for a native weekly-close recalculation"
+        required: false
+        default: ""
+        type: string
       bundle_sha256:
         description: "Optional immutable runner bundle SHA-256 pin"
         required: false
@@ -724,6 +734,22 @@ jobs:
           fi
           [ -n "${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" ] && echo "::add-mask::${CLOUDFLARE_CHART_API_REFRESH_TOKEN}"
 
+          RECALCULATE_MODE="${{ github.event.inputs.recalculate_mode }}"
+          CHART_WEEK="${{ github.event.inputs.chart_week }}"
+          RECALCULATE_QUERY="?sync=1"
+          case "${RECALCULATE_MODE}" in
+            ""|daily) ;;
+            weekly-close) RECALCULATE_QUERY="${RECALCULATE_QUERY}&mode=weekly-close" ;;
+            *) echo "::error::Unsupported recalculate_mode: ${RECALCULATE_MODE}"; exit 1 ;;
+          esac
+          if [ -n "${CHART_WEEK}" ]; then
+            if ! [[ "${CHART_WEEK}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+              echo "::error::chart_week must use YYYY-MM-DD"
+              exit 1
+            fi
+            RECALCULATE_QUERY="${RECALCULATE_QUERY}&week=${CHART_WEEK}"
+          fi
+
           STARTED_AT=$(date -u +%s)
           set +e
           # Recalc is now WORKER-NATIVE: the Cloudflare worker scores the relational D1
@@ -732,7 +758,7 @@ jobs:
           # d1rel) — this step just triggers the worker and gates on its result.
           (
             HTTP_CODE=$(curl -sS -X POST \
-              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/recalculate-native?sync=1" \
+              "${CLOUDFLARE_CHART_API_URL%/}/v1/admin/charts/recalculate-native${RECALCULATE_QUERY}" \
               -H "Authorization: Bearer ${CLOUDFLARE_CHART_API_REFRESH_TOKEN}" \
               -H "Accept: application/json" \
               -o /tmp/recalc-body.json -w '%{http_code}' || echo "000")
