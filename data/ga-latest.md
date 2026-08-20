@@ -1,23 +1,21 @@
-# GA Daily Report — 2026-08-19
+# GA Daily Report — 2026-08-20
 
-**6** new items from 7 Nigerian gospel blogs
+**5** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelMinds: 3
-- SelahAfrik: 3
+- SelahAfrik: 5
 
 ### By Category
 
 ## 🎵 New Music (3)
 
-- [DOWNLOAD MP3: Dupe Akinwande - Nipa Ife Olugbala](https://gospelminds.com/audio-music/mp3-dupe-akinwande-nipa-ife-olugbala/) — _GospelMinds_
-- [MP3 + LYRICS: Nathaniel Bassey - Agbanilagbatan](https://gospelminds.com/audio-music/mp3-lyrics-nathaniel-bassey-agbanilagbatan/) — _GospelMinds_
-- [DOWNLOAD MP3: Greatman Takit - You Are Good ft Nathaniel Bassey](https://gospelminds.com/audio-music/download-mp3-greatman-takit-you-are-good-ft-nathaniel-bassey/) — _GospelMinds_
+- [#SelahMusicVid: Mr. D. David &#124; Miracle God [Audio + Video]](https://selahafrik.com/2026/08/miracle-god-david/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=miracle-god-david) — _SelahAfrik_
+- [#SelahMusicVid: Bro Jude C Calls Hearts To Deeper Worship With “Igba Ndi Amuma”](https://selahafrik.com/2026/08/igba-ndi-amuma-bro-jude/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=igba-ndi-amuma-bro-jude) — _SelahAfrik_
+- [#SelahMusicVid: Dupe Akinwande Unveils New Sound Of Grace And Love, “Nipa Ife Olugbala”](https://selahafrik.com/2026/08/nipa-olugbala-dupe-akinwande/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=nipa-olugbala-dupe-akinwande) — _SelahAfrik_
 
-## 📢 News (3)
+## 📢 News (2)
 
-- [‘Hell Is Real’ — Solomon Buchi Blasts Pastor Tobi Adegboyega’s Recent Remark](https://selahafrik.com/2026/08/hell-real-solomon-buchi/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=hell-real-solomon-buchi) — _SelahAfrik_
-- [“The Love Of Money Is Not The Root Of All Evil” - Pastor Harrison Ayintete](https://selahafrik.com/2026/08/love-money-root-evil/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=love-money-root-evil) — _SelahAfrik_
-- [Breaking: Christ Embassy Manufactures & Unveils Electric Car](https://selahafrik.com/2026/08/christ-embassy-electric-car/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=christ-embassy-electric-car) — _SelahAfrik_
+- [Pastor Tobi Adegboyega Opens Up On ₦551m Daily Financial Obligations](https://selahafrik.com/2026/08/tobi-adegboyega-spends-%e2%82%a6551m/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=tobi-adegboyega-spends-%25e2%2582%25a6551m) — _SelahAfrik_
+- [Pastor Andrew Emajere Questions Tonto Dikeh’s Decision To Open Church](https://selahafrik.com/2026/08/tonto-dikeh-begins-ministry/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=tonto-dikeh-begins-ministry) — _SelahAfrik_
