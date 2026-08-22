@@ -110,6 +110,8 @@ jobs:
   plan-full-discovery-shards:
     if: ${{ github.event.inputs.job == 'full-discovery' }}
     runs-on: ubuntu-latest
+    # The broker requires this GitHub-signed claim to match RUNNER_KEY_JOB.
+    environment: full-discovery
     timeout-minutes: 30
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -189,6 +191,8 @@ jobs:
     if: ${{ always() && github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' && github.event.inputs.job != 'repair-baselined-metrics-2026-08-20' && (github.event.inputs.job != 'full-discovery' || needs.plan-full-discovery-shards.result == 'success') }}
     name: ${{ github.event.inputs.job == 'full-discovery' && format('discovery-scan ({0}, {1} artists, {2} work)', matrix.shard, matrix.artist_count, matrix.estimated_work) || 'run' }}
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job }}
     # Full Discovery scans the seeded catalogue end-to-end. It has its own
     # bounded timeout so a slow provider cannot terminate a healthy scan at
     # the generic runner cap.
@@ -472,6 +476,7 @@ jobs:
     needs: [plan-full-discovery-shards, run]
     if: ${{ github.event.inputs.job == 'full-discovery' && needs.plan-full-discovery-shards.result == 'success' && needs.run.result == 'success' && github.event.inputs.dry_run != 'true' && github.event.inputs.artists == '' }}
     runs-on: ubuntu-latest
+    environment: full-discovery
     timeout-minutes: 20
     env:
       KEY_BROKER_URL: ${{ vars.KEY_BROKER_URL }}
@@ -517,6 +522,7 @@ jobs:
     needs: run
     if: ${{ always() && github.event.inputs.job == 'album-collect' && github.event.inputs.artist_shards != '[""]' && needs.run.result == 'success' }}
     runs-on: ubuntu-latest
+    environment: album-collect
     timeout-minutes: 60
     env:
       RUNNER_JOB: album-collect-finalize
@@ -614,6 +620,8 @@ jobs:
   recalculate:
     if: ${{ github.event.inputs.job == 'recalculate-live-chart' || github.event.inputs.job == 'repair-baselined-metrics-2026-08-20' }}
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.job == 'repair-baselined-metrics-2026-08-20' && 'recalculate-live-chart' || github.event.inputs.job }}
     timeout-minutes: 120
     env:
       RUNNER_JOB: ${{ github.event.inputs.job }}
@@ -877,6 +885,8 @@ jobs:
   prepare-fanout:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'album-refresh' }}
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.job == 'album-refresh' && 'album-collect' || 'daily-refresh-fanout-start' }}
     timeout-minutes: 180
     env:
       RUNNER_JOB: ${{ github.event.inputs.job == 'album-refresh' && 'album-refresh-start' || format('{0}-start', github.event.inputs.job) }}
@@ -998,6 +1008,8 @@ jobs:
     needs: prepare-fanout
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'album-refresh' }}
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.job == 'album-refresh' && 'album-collect' || matrix.runner_job }}
     timeout-minutes: 300
     strategy:
       fail-fast: false
@@ -1152,6 +1164,8 @@ jobs:
     needs: [prepare-fanout, provider-fanout]
     if: ${{ always() && (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'daily-refresh-fanout-finalize' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize' || github.event.inputs.job == 'album-refresh' || github.event.inputs.job == 'album-refresh-finalize') }}
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ (github.event.inputs.job == 'album-refresh' || github.event.inputs.job == 'album-refresh-finalize') && 'album-collect' || 'daily-refresh-fanout-finalize' }}
     timeout-minutes: 360
     env:
       RUNNER_JOB: ${{ github.event.inputs.job == 'album-refresh' && 'album-refresh-finalize' || github.event.inputs.job == 'album-refresh-finalize' && github.event.inputs.job || (github.event.inputs.job == 'daily-refresh-fanout-finalize' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize') && github.event.inputs.job || format('{0}-finalize', github.event.inputs.job) }}
