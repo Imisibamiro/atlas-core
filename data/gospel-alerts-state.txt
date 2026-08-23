@@ -494,3 +494,7 @@ PraiseWorldRadio|https://www.praiseworldradio.com/?p=362238
 GMusicPlus|https://www.gmusicplus.com/?p=75414
 SelahAfrik|https://selahafrik.com/?p=130163
 SelahAfrik|https://selahafrik.com/?p=130155
+GMusicPlus|https://www.gmusicplus.com/?p=75422
+GMusicPlus|https://www.gmusicplus.com/?p=75419
+GospelMinds|https://gospelminds.com/?p=86752
+GospelMinds|https://gospelminds.com/?p=86746
