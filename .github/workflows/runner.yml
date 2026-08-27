@@ -213,7 +213,10 @@ jobs:
       # Each shard keeps provider pressure at the established two-artist ceiling.
       ARTIST_DISCOVERY_CONCURRENCY: "2"
       RUNNER_TIMEOUT_MS: ${{ github.event.inputs.job == 'full-discovery' && '21000000' || '10800000' }}
-      NGMC_TARGET_ARTISTS: ${{ matrix.artist_shard || github.event.inputs.artists }}
+      # Full Discovery resolves its name filter into exact IDs during planning.
+      # The private runner rejects receiving both forms, so leave the name
+      # filter blank for a matrix shard and pass its bounded ID set only.
+      NGMC_TARGET_ARTISTS: ${{ matrix.artist_ids && ' ' || matrix.artist_shard || github.event.inputs.artists }}
       NGMC_TARGET_ARTIST_IDS: ${{ matrix.artist_ids || '' }}
       NGMC_DISCOVERY_SHARD: ${{ matrix.shard || '' }}
       # A full album fanout runs two shards at once, with three artists per
