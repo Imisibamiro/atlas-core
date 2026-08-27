@@ -57,6 +57,11 @@ name: "Run"
         required: false
         default: ""
         type: string
+      retry_failed_part:
+        description: "Allow a named provider part to reopen a failed fanout run (manual recovery only)"
+        required: false
+        default: "false"
+        type: string
       classifier_job_id:
         description: "Optional classifier job id that fanout finalization must wait for"
         required: false
@@ -209,6 +214,7 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      NGMC_REFRESH_RETRY_FAILED_PART: ${{ github.event.inputs.retry_failed_part }}
       # Full Discovery runs up to eight explicit, non-overlapping matrix shards.
       # Each shard keeps provider pressure at the established two-artist ceiling.
       ARTIST_DISCOVERY_CONCURRENCY: "2"
