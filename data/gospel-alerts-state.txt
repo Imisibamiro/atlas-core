@@ -579,3 +579,6 @@ SelahAfrik|https://selahafrik.com/?p=130270
 SelahAfrik|https://selahafrik.com/?p=130268
 SelahAfrik|https://selahafrik.com/?p=130266
 SelahAfrik|https://selahafrik.com/?p=130263
+GospelMinds|https://gospelminds.com/?p=86853
+GospelMinds|https://gospelminds.com/?p=86850
+PraiseWorldRadio|https://www.praiseworldradio.com/?p=362296
