@@ -1,17 +1,15 @@
-# GA Daily Report — 2026-09-03
+# GA Daily Report — 2026-09-04
 
-**3** new items from 7 Nigerian gospel blogs
+**2** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelMinds: 2
-- PraiseWorldRadio: 1
+- SelahAfrik: 2
 
 ### By Category
 
-## 🎵 New Music (3)
+## 📢 News (2)
 
-- [MP3 + LYRICS: Moses Bliss - Unending Joy Ft. Greatman Takit](https://gospelminds.com/audio-music/mp3-lyrics-moses-bliss-unending-joy-ft-greatman-takit/) — _GospelMinds_
-- [Mp3: Ayobamidele - Mimo L'"'"'Oluwa Ft Iyanu Ileyemi](https://gospelminds.com/audio-music/mp3-ayobamidele-mimo-loluwa-ft-iyanu-ileyemi/) — _GospelMinds_
-- [MUSIC: Tayo Ayodele - Joy of Salvation](https://www.praiseworldradio.com/tayo-ayodele-joy-of-salvation/) — _PraiseWorldRadio_
+- [RCCG Brings Robotic Surgery To Nigeria, Acquires Two Advanced Surgical Robots](https://selahafrik.com/2026/09/robotic-surgery-in-nigeria/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=robotic-surgery-in-nigeria) — _SelahAfrik_
+- [“Stop Exploiting The Poor Because You Know How To Bargain Prices” - Apostle Emmanuel Iren](https://selahafrik.com/2026/09/bargaining-prices-exploit-poor/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=bargaining-prices-exploit-poor) — _SelahAfrik_
