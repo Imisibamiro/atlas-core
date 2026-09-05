@@ -1,15 +1,19 @@
-# GA Daily Report — 2026-09-04
+# GA Daily Report — 2026-09-05
 
-**2** new items from 7 Nigerian gospel blogs
+**5** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- SelahAfrik: 2
+- GospelMinds: 4
+- SelahAfrik: 1
 
 ### By Category
 
-## 📢 News (2)
+## 🎵 New Music (5)
 
-- [RCCG Brings Robotic Surgery To Nigeria, Acquires Two Advanced Surgical Robots](https://selahafrik.com/2026/09/robotic-surgery-in-nigeria/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=robotic-surgery-in-nigeria) — _SelahAfrik_
-- [“Stop Exploiting The Poor Because You Know How To Bargain Prices” - Apostle Emmanuel Iren](https://selahafrik.com/2026/09/bargaining-prices-exploit-poor/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=bargaining-prices-exploit-poor) — _SelahAfrik_
+- [MP3 + VIDEO: Beejay Sax - The Most High God](https://gospelminds.com/audio-music/mp3-beejay-sax-the-most-high-god/) — _GospelMinds_
+- [DOWNLOAD MP3: Greatman Takit - ADML (Lyrics + Video)](https://gospelminds.com/audio-music/download-mp3-greatman-takit-adml-lyrics-video/) — _GospelMinds_
+- [DOWNLOAD MP3: Sarah Wonders - God Can Be Trusted (Lyrics)](https://gospelminds.com/audio-music/download-mp3-sarah-wonders-god-can-be-trusted-lyrics/) — _GospelMinds_
+- [DOWNLOAD MP3: Oluwafemi Amida - I Got My Victory (Lyrics)](https://gospelminds.com/audio-music/download-mp3-oluwafemi-amida-i-got-my-victory-lyrics/) — _GospelMinds_
+- [#SelahMusicVid: Testifier Declares God’s Goodness With Uplifting New Single “Chinememma”](https://selahafrik.com/2026/09/chinememma-testifier/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=chinememma-testifier) — _SelahAfrik_
