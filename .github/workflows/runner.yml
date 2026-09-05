@@ -57,6 +57,11 @@ name: "Run"
         required: false
         default: ""
         type: string
+      canonical_song_id:
+        description: "Optional canonical song ID for a read-only source-track membership audit"
+        required: false
+        default: ""
+        type: string
       job_run_id:
         description: "Optional Cloudflare/admin job id to report back against"
         required: false
@@ -239,6 +244,7 @@ jobs:
       # Keep official-video correction scope separate from Spotify recovery so
       # an operator can repair one video family without widening matching.
       YOUTUBE_APPLE_GUARD_TARGET_TRACK_IDS: ${{ github.event.inputs.target_official_video_track_ids }}
+      CANONICAL_SONG_ID: ${{ github.event.inputs.canonical_song_id }}
       NGMC_TARGET_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
       NGMC_JOB_RUN_ID: ${{ github.event.inputs.job_run_id }}
       NGMC_REFRESH_RUN_ID: ${{ github.event.inputs.job_run_id }}
@@ -337,6 +343,33 @@ jobs:
           echo "job=$(echo "${RESPONSE}" | jq -r '.job // ""')" >> "${GITHUB_OUTPUT}"
           echo "key_count=$(echo "${RESPONSE}" | jq -r '.keys | length')" >> "${GITHUB_OUTPUT}"
 
+      - name: Audit canonical source-track membership
+        if: ${{ github.event.inputs.canonical_song_id != '' }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "${CANONICAL_SONG_ID}" | grep -Eq '^[A-Za-z0-9._:-]{1,160}$'; then
+            echo "::error::canonical_song_id is invalid"
+            exit 1
+          fi
+          CHART_URL=$(jq -r '.CLOUDFLARE_CHART_API_URL // .CHART_API_WORKER_URL // .CHART_API_URL // ""' "${RUNNER_KEY_FILE}")
+          CHART_TOKEN=$(jq -r '.CLOUDFLARE_CHART_API_REFRESH_TOKEN // .CHART_API_REFRESH_TOKEN // .CHART_API_TOKEN // ""' "${RUNNER_KEY_FILE}")
+          test -n "${CHART_URL}"
+          test -n "${CHART_TOKEN}"
+          echo "::add-mask::${CHART_TOKEN}"
+          SONG_ID_ENCODED=$(printf '%s' "${CANONICAL_SONG_ID}" | jq -sRr @uri)
+          curl -sS -f --connect-timeout 10 --max-time 30 \
+            "${CHART_URL%/}/v1/admin/canonical-songs/${SONG_ID_ENCODED}/family" \
+            -H "Authorization: Bearer ${CHART_TOKEN}" \
+            -H "Accept: application/json" \
+            -o /tmp/canonical-family.json
+          jq '{
+            ok,
+            summary,
+            canonical: (.canonical | {id, title, artistName, sourceTrackId}),
+            sourceTracks: [.sourceTracks[]? | {track_id, source_track_id, is_primary, source_role}],
+            tracks: [.tracks[]? | {id, song_id, canonical_song_id, status, title, artist_name, apple_music_id, youtube_video_id, music_video_id}]
+          }' /tmp/canonical-family.json
+
       - name: Fetch runner bundle
         id: runner-bundle
         env:
@@ -419,6 +452,7 @@ jobs:
 
       - name: Run job
         id: run_job
+        if: ${{ github.event.inputs.canonical_song_id == '' }}
         run: node scripts/run.mjs
 
       - name: Notify status
