@@ -1,23 +1,26 @@
-# GA Daily Report — 2026-09-09
+# GA Daily Report — 2026-09-10
 
 **6** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelMinds: 3
-- SelahAfrik: 3
+- GospelMinds: 4
+- GMusicPlus: 2
 
 ### By Category
 
 ## 🎵 New Music (4)
 
-- [DOWNLOAD MP3: Faith Sani - Ojo Mi Agba](https://gospelminds.com/audio-music/download-mp3-faith-sani-ojo-mi-agba/) — _GospelMinds_
-- [DOWNLOAD MP3: Nathaniel Bassey - Onye Kam Ga Si Na Oyiri Gi](https://gospelminds.com/audio-music/download-mp3-nathaniel-bassey-onye-kam-ga-si-na-oyiri-gi/) — _GospelMinds_
-- [DOWNLOAD MP3: Esther Oji - I Belong](https://gospelminds.com/audio-music/download-mp3-esther-oji-i-belong/) — _GospelMinds_
-- [#SelahMusicVid: Ailly Omojehova Releases “Odogwu,” A Vibrant Celebration Of God’s Goodness](https://selahafrik.com/2026/09/odogwu-ailly-omojehova/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=odogwu-ailly-omojehova) — _SelahAfrik_
+- [“Jowo” - Adeyinka Alaseyori Drops New Worship Song feat. Owoniyi O'"'"'femiSmile](https://www.gmusicplus.com/jowo-adeyinka-alaseyori-drops-new-worship-song-feat-owoniyi-ofemismile/) — _GMusicPlus_
+- [DOWNLOAD MP3: I Will Sing - Godsfavour Johnson-Suleman](https://gospelminds.com/audio-music/download-mp3-i-will-sing-godsfavour-johnson-suleman/) — _GospelMinds_
+- [DOWNLOAD MP3: Esther Oji - Do It Again (Lyrics)](https://gospelminds.com/audio-music/download-mp3-esther-oji-do-it-again-lyrics/) — _GospelMinds_
+- [DOWNLOAD MP3: Ruth Patrick - You Love Me (Lyrics)](https://gospelminds.com/audio-music/download-mp3-ruth-patrick-you-love-me-lyrics/) — _GospelMinds_
 
-## 📢 News (2)
+## 🎵 Mixtape (1)
 
-- [“Why Believe In One Who Can’t Walk On Water?” — Pete Edochie Explains Faith In Jesus](https://selahafrik.com/2026/09/pete-edochie-faith-jesus/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=pete-edochie-faith-jesus) — _SelahAfrik_
-- [“Yahoo Is Stealing” — Pastor David Ibiyeomie Rejects Offerings From Internet Fraudsters](https://selahafrik.com/2026/09/david-ibiyeomie-yahoo-offerings/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=david-ibiyeomie-yahoo-offerings) — _SelahAfrik_
+- [MIXTAPE: Goodness Of God '"'"'Diamond Sound 19.0'"'"' - GospelMinds](https://gospelminds.com/advertisement/mixtape-goodness-of-god-diamond-sound-19-0-gospelminds/) — _GospelMinds_
+
+## 📢 News (1)
+
+- [Pastor E.A Adeboye & Wife Celebrate 59th Wedding Anniversary](https://www.gmusicplus.com/pastor-e-a-adeboye-wife-celebrate-59th-wedding-anniversary/) — _GMusicPlus_
