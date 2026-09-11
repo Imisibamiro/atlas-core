@@ -620,3 +620,6 @@ GospelMinds|https://gospelminds.com/?p=86908
 GospelMinds|https://gospelminds.com/?p=86912
 GospelMinds|https://gospelminds.com/?p=86906
 GospelMinds|https://gospelminds.com/?p=86902
+GospelHotspot|https://gospelhotspot.net/?p=85492
+GospelHotspot|https://gospelhotspot.net/?p=85488
+GospelMinds|https://gospelminds.com/?p=86922
