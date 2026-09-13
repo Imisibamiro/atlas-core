@@ -1,30 +1,22 @@
-# GA Daily Report — 2026-09-12
+# GA Daily Report — 2026-09-13
 
-**9** new items from 7 Nigerian gospel blogs
+**6** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
 - SelahAfrik: 6
-- GospelMinds: 2
-- GMusicPlus: 1
 
 ### By Category
 
-## 🎵 New Music (3)
+## 🎵 New Music (5)
 
-- [DOWNLOAD MP3: Brenton Brown - Everywhere I Go ft. King’s College](https://gospelminds.com/audio-music/download-mp3-brenton-brown-everywhere-i-go-ft-kings-college/) — _GospelMinds_
-- [Mp3 + Video: Funke Akinokun - Alade Ogo ft. Dee Jones](https://gospelminds.com/audio-music/funke-akinokun-alade-ogo-ft-dee-jones/) — _GospelMinds_
-- [#SelahMusicVid: Ken EB Declares God’s Sovereignty In New Single “Our God Reigns”](https://selahafrik.com/2026/09/our-god-reigns-ken-eb/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=our-god-reigns-ken-eb) — _SelahAfrik_
+- [#SelahMusicVid: Godsfavour Johnson-Suleman Turns Faith Into A Song Of Praise With “I Will Sing”](https://selahafrik.com/2026/09/will-sing-godsfavour-suleman/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=will-sing-godsfavour-suleman) — _SelahAfrik_
+- [#SelahMusicVid: Mikey Adebayo’s “The Upper Room” Echoes The Sound Of The Holy Spirit](https://selahafrik.com/2026/09/upper-room-mikey-adebayo/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=upper-room-mikey-adebayo) — _SelahAfrik_
+- [#SelahMusicVid: Ruth Patrick Sings Of A Love That Never Fails In “You Love Me”](https://selahafrik.com/2026/09/you-love-ruth-patrick/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=you-love-ruth-patrick) — _SelahAfrik_
+- [#SelahMusicVid: Evangelist Collins Ugwuzumba Unveils Soulful New Song “Chioma”](https://selahafrik.com/2026/09/chioma-collins-ugwuzumba/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=chioma-collins-ugwuzumba) — _SelahAfrik_
+- [#SelahMusicVid: Faith Sani &#124; Ojo Mi Agba (Thank You My Lord) [Audio + Video]](https://selahafrik.com/2026/09/ojo-mi-agba-faith-sani/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=ojo-mi-agba-faith-sani) — _SelahAfrik_
 
-## 💿 Album/EP (1)
+## 📢 News (1)
 
-- ["TASHA UNSCRIPTED" — Tasha Cobbs Leonard Releases 34-Track Live Album](https://www.gmusicplus.com/tasha-unscripted-tasha-cobbs-leonard-releases-34-track-live-album/) — _GMusicPlus_
-
-## 📢 News (5)
-
-- [Remnant Christian Network Has Officially Acquired New Property In Canada!](https://selahafrik.com/2026/09/rcn-acquires-property-canada/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=rcn-acquires-property-canada) — _SelahAfrik_
-- [“Comedy Skits Kill Your IQ!” — Apostle Johnson Suleman Warns Pastors Against Watching](https://selahafrik.com/2026/09/pastors-watching-comedy-skits/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=pastors-watching-comedy-skits) — _SelahAfrik_
-- [Gaise Baba Reveals The Secular Artists He Would Love To Work With And Why](https://selahafrik.com/2026/09/gaise-baba-secular-artists/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=gaise-baba-secular-artists) — _SelahAfrik_
-- [“Jesus Was Molested In Hell?!” Pastor Otha Turnbough’s Claim Sparks Shock](https://selahafrik.com/2026/09/jesus-was-molested-hell/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=jesus-was-molested-hell) — _SelahAfrik_
-- [“I Had To Quit My Job At Winners’ Chapel To Go Make More Money” - Femi Dapso](https://selahafrik.com/2026/09/femi-dapson-quits-job/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=femi-dapson-quits-job) — _SelahAfrik_
+- [Pastor Chris Oyakhilome Unveils ‘Interlink’ - Watch Full Presentation](https://selahafrik.com/2026/09/chris-oyakhilome-unveils-interlink/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=chris-oyakhilome-unveils-interlink) — _SelahAfrik_
