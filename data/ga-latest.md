@@ -1,24 +1,30 @@
-# GA Daily Report — 2026-09-17
+# GA Daily Report — 2026-09-19
 
-**7** new items from 7 Nigerian gospel blogs
+**12** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- SelahAfrik: 6
-- GospelMinds: 1
+- SelahAfrik: 7
+- 247GospelVibes: 3
+- GMusicPlus: 2
 
 ### By Category
 
-## 🎵 New Music (1)
+## 🎵 New Music (6)
 
-- [DOWNLOAD MP3: Ehiliz - I Have A God](https://gospelminds.com/audio-music/download-mp3-ehiliz-i-have-a-god/) — _GospelMinds_
+- [#SelahMusicVid: Uwana Etuk Unveils New Worship Album, “Glorify Jesus”](https://selahafrik.com/2026/09/glorify-jesus-uwana-etuk/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=glorify-jesus-uwana-etuk) — _SelahAfrik_
+- [#SelahMusicVid: Sandra &#124; Greatest Of Them All [Audio + Video]](https://selahafrik.com/2026/09/greatest-them-all-sandra/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=greatest-them-all-sandra) — _SelahAfrik_
+- [#SelahMusicVid: Mike Abdul &#124; Kilimanjaro [Audio + Video] &#124; Feat. Monique](https://selahafrik.com/2026/09/kilimanjaro-mike-abdul/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=kilimanjaro-mike-abdul) — _SelahAfrik_
+- [#SelahMusicVid: Ehiliz Turns Confidence In Christ Into A Joyful Sound With “I Have A God”](https://selahafrik.com/2026/09/have-god-ehiliz/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=have-god-ehiliz) — _SelahAfrik_
+- [New Music: GREATEST OF THEM ALL - Sandra](https://247gospelvibes.com/greatest-of-all/) — _247GospelVibes_
+- [Uwana Etuk Glorify Jesus Album Is an Invitation to Worship](https://247gospelvibes.com/uwana-etuk-glorify-jesus-album-is-an-invitation-to-worship/) — _247GospelVibes_
 
 ## 📢 News (6)
 
-- [Bunmi George Says Some “Generational Curses” Are Actually Behavioral Patterns](https://selahafrik.com/2026/09/generational-curses-behavioral-patterns/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=generational-curses-behavioral-patterns) — _SelahAfrik_
-- [“I’m A Jesus Boy, But I Don’t Do Gospel Music” — Spyro Says](https://selahafrik.com/2026/09/spyro-being-jesus-boy/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=spyro-being-jesus-boy) — _SelahAfrik_
-- [Pastor Tobi Adegboyega Says SPAC Nation Is Now A Church For Christians & Muslims](https://selahafrik.com/2026/09/pastor-tobi-adegboyega-says-spac-nation-is-now-a-church-for-christians-muslims/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=pastor-tobi-adegboyega-says-spac-nation-is-now-a-church-for-christians-muslims) — _SelahAfrik_
-- [Apostle Arome Osayi Dedicates RCN Warri’s New Auditorium “The Refinery”](https://selahafrik.com/2026/09/the-refinery-auditorium/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=the-refinery-auditorium) — _SelahAfrik_
-- [Pastor Bolaji Idowu Urges Dr. Obafemi Hamzat To Make Lagos Easier For Young People](https://selahafrik.com/2026/09/make-lagos-easy-people/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=make-lagos-easy-people) — _SelahAfrik_
-- [Lady Crochets QR Code Linking Directly To The Bible?! You’ve Got To See This!](https://selahafrik.com/2026/09/crochet-qr-code-bible/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=crochet-qr-code-bible) — _SelahAfrik_
+- [Jekalyn Carr Launches Sold Out A Night of Breakthrough Tour](https://www.gmusicplus.com/jekalyn-carr-launches-sold-out-a-night-of-breakthrough-tour/) — _GMusicPlus_
+- [Lauren Daigle Announces 2026 Behold Christmas Tour](https://www.gmusicplus.com/lauren-daigle-announces-2026-behold-christmas-tour/) — _GMusicPlus_
+- [Kirk Franklin Prays For Chris Brown & Usher Ahead Of Concert](https://selahafrik.com/2026/09/kirk-franklin-prays-usher/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=kirk-franklin-prays-usher) — _SelahAfrik_
+- [Unbelievable Testimony! Radio Personality Sabina D'"'"'Great AKA NaijaPastor Beats Cancer!](https://selahafrik.com/2026/09/sabina-beats-cancer-dgreat-aka-naijapastor/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=sabina-beats-cancer-dgreat-aka-naijapastor) — _SelahAfrik_
+- [Gaise Baba Stunned After Being Gifted A Brand-New Mercedes-Benz Worth Millions](https://selahafrik.com/2026/09/gaise-baba-surprised-benz/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=gaise-baba-surprised-benz) — _SelahAfrik_
+- [AWARD-WINNING RADIO PERSONALITY SABINA D’GREAT BEATS CANCER! COMES OUT WITH UNBELIEVABLE TESTIMONY!](https://247gospelvibes.com/sabina-dgreat-beats-cancer/) — _247GospelVibes_
