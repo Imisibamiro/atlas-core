@@ -661,3 +661,7 @@ SelahAfrik|https://selahafrik.com/?p=130550
 247GospelVibes|https://247gospelvibes.com/greatest-of-all/
 247GospelVibes|https://247gospelvibes.com/sabina-dgreat-beats-cancer/
 247GospelVibes|https://247gospelvibes.com/?p=5098
+GospelHotspot|https://gospelhotspot.net/?p=85498
+GospelMinds|https://gospelminds.com/?p=86952
+GospelMinds|https://gospelminds.com/?p=86948
+GospelMinds|https://gospelminds.com/?p=86945
