@@ -37,6 +37,11 @@ name: "Run"
         required: false
         default: ""
         type: string
+      debug_video_id:
+        description: "Optional exact YouTube video ID for write-safe Discovery evidence diagnostics"
+        required: false
+        default: ""
+        type: string
       artist_shards:
         description: "JSON array of comma-separated artist batches for bounded album fanout"
         required: false
@@ -224,6 +229,7 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      DISCOVERY_DEBUG_VIDEO_ID: ${{ github.event.inputs.debug_video_id }}
       NGMC_REFRESH_RETRY_FAILED_PART: ${{ github.event.inputs.retry_failed_part }}
       # Full Discovery runs up to eight explicit, non-overlapping matrix shards.
       # Each shard keeps provider pressure at the established two-artist ceiling.
