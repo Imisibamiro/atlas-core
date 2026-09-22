@@ -665,3 +665,5 @@ GospelHotspot|https://gospelhotspot.net/?p=85498
 GospelMinds|https://gospelminds.com/?p=86952
 GospelMinds|https://gospelminds.com/?p=86948
 GospelMinds|https://gospelminds.com/?p=86945
+GospelMinds|https://gospelminds.com/?p=86958
+GospelMinds|https://gospelminds.com/?p=86955
