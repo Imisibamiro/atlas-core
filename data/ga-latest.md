@@ -1,24 +1,25 @@
-# GA Daily Report — 2026-09-23
+# GA Daily Report — 2026-09-24
 
-**6** new items from 7 Nigerian gospel blogs
+**7** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
+- SelahAfrik: 4
 - GospelMinds: 2
-- SelahAfrik: 2
-- 247GospelVibes: 2
+- GMusicPlus: 1
 
 ### By Category
 
-## 🎵 New Music (4)
+## 🎵 New Music (3)
 
-- [DOWNLOAD MP3: Victoria Orenze - Just Believe (Album)](https://gospelminds.com/album/mp3-victoria-orenze-just-believe/) — _GospelMinds_
-- [DOWNLOAD MP3: Helen Diji - Amazing Grace](https://gospelminds.com/audio-music/download-mp3-helen-diji-amazing-grace/) — _GospelMinds_
-- [Music: Sola Agunbiade – Irin Ajo Emi](https://247gospelvibes.com/music-sola-agunbiade-irin-ajo-emi/) — _247GospelVibes_
-- [New Music + Lyric Video - Emem Archibong - SOLDIER](https://247gospelvibes.com/emem-archibong-soldier/) — _247GospelVibes_
+- ["Here Comes the Church" — Tauren Wells Drops New Live Single Feat. Tiffany Hudson](https://www.gmusicplus.com/here-comes-the-church-tauren-wells-drops-new-live-single-feat-tiffany-hudson/) — _GMusicPlus_
+- [DOWNLOAD MP3: Victoria Orenze - Jesus Ooooooo (Video)](https://gospelminds.com/audio-music/download-mp3-victoria-orenze-jesus-ooooooo/) — _GospelMinds_
+- [DOWNLOAD MP3: Matthew West - Jesus Is King (Album)](https://gospelminds.com/audio-music/download-mp3-matthew-west-jesus-is-king-album/) — _GospelMinds_
 
-## 📢 News (2)
+## 📢 News (4)
 
-- [Patient Shares Experience After RCCG’s Historic Tele-Robotic Surgery](https://selahafrik.com/2026/09/rccg-tele-robotic-surgery/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=rccg-tele-robotic-surgery) — _SelahAfrik_
-- [“You’re a Fool If You Fail In School Because Of Ministry Work” - Pastor Olumide Emmanuel](https://selahafrik.com/2026/09/fail-school-because-ministry/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=fail-school-because-ministry) — _SelahAfrik_
+- [Prophet Uebert Angel Surprises Son Denzel Malakai With Brand-New Mercedes-Benz](https://selahafrik.com/2026/09/uebert-angel-surprises-son/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=uebert-angel-surprises-son) — _SelahAfrik_
+- [A Tribute to Nutty Josh: Rapper Who Served the Gospel — His Legacy Lives On](https://selahafrik.com/2026/09/tribute-to-nutty-josh/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=tribute-to-nutty-josh) — _SelahAfrik_
+- [Pastor William Kumuyi Meets Pakistan’s Grand Imam & Shares Message On God'"'"'s Love](https://selahafrik.com/2026/09/william-kumuyi-pakistans-imam/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=william-kumuyi-pakistans-imam) — _SelahAfrik_
+- [“Knowledge Is Not Power!” - Apostle Johnson Suleman Declares](https://selahafrik.com/2026/09/knowledge-is-not-power/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=knowledge-is-not-power) — _SelahAfrik_
