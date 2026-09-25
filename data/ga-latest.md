@@ -1,25 +1,24 @@
-# GA Daily Report — 2026-09-24
+# GA Daily Report — 2026-09-25
 
-**7** new items from 7 Nigerian gospel blogs
+**5** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- SelahAfrik: 4
-- GospelMinds: 2
-- GMusicPlus: 1
+- SelahAfrik: 2
+- GospelHotspot: 1
+- GospelMinds: 1
+- 247GospelVibes: 1
 
 ### By Category
 
-## 🎵 New Music (3)
+## 🎵 New Music (1)
 
-- ["Here Comes the Church" — Tauren Wells Drops New Live Single Feat. Tiffany Hudson](https://www.gmusicplus.com/here-comes-the-church-tauren-wells-drops-new-live-single-feat-tiffany-hudson/) — _GMusicPlus_
-- [DOWNLOAD MP3: Victoria Orenze - Jesus Ooooooo (Video)](https://gospelminds.com/audio-music/download-mp3-victoria-orenze-jesus-ooooooo/) — _GospelMinds_
-- [DOWNLOAD MP3: Matthew West - Jesus Is King (Album)](https://gospelminds.com/audio-music/download-mp3-matthew-west-jesus-is-king-album/) — _GospelMinds_
+- [DOWNLOAD MP3: Minister Osaye - Imiefan (Lyrics)](https://gospelminds.com/audio-music/mp3-minister-osaye-imiefan-lyrics/) — _GospelMinds_
 
 ## 📢 News (4)
 
-- [Prophet Uebert Angel Surprises Son Denzel Malakai With Brand-New Mercedes-Benz](https://selahafrik.com/2026/09/uebert-angel-surprises-son/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=uebert-angel-surprises-son) — _SelahAfrik_
-- [A Tribute to Nutty Josh: Rapper Who Served the Gospel — His Legacy Lives On](https://selahafrik.com/2026/09/tribute-to-nutty-josh/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=tribute-to-nutty-josh) — _SelahAfrik_
-- [Pastor William Kumuyi Meets Pakistan’s Grand Imam & Shares Message On God'"'"'s Love](https://selahafrik.com/2026/09/william-kumuyi-pakistans-imam/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=william-kumuyi-pakistans-imam) — _SelahAfrik_
-- [“Knowledge Is Not Power!” - Apostle Johnson Suleman Declares](https://selahafrik.com/2026/09/knowledge-is-not-power/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=knowledge-is-not-power) — _SelahAfrik_
+- [The Honourees Are Here! CLIMA Africa 2026 Reveals Those Set To Be Celebrated At Its 10th Anniversary](https://gospelhotspot.net/the-honourees-are-here-clima-africa-2026-reveals-those-set-to-be-celebrated-at-its-10th-anniversary/) — _GospelHotspot_
+- [‘Eating Late At Night Can Make You Diabetic’ — Apostle Johnson Suleman Reveals](https://selahafrik.com/2026/09/eating-late-causes-diabetic/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=eating-late-causes-diabetic) — _SelahAfrik_
+- [Travis Greene Calls Out Pastors Who Excuse Members’ Sin Because They’re Victims Too](https://selahafrik.com/2026/09/pastors-excuse-members-sin/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=pastors-excuse-members-sin) — _SelahAfrik_
+- [Meet Prince Oluwatosin Odumosu: Building Systems for Africa'"'"'s Creative Economy](https://247gospelvibes.com/meet-prince-oluwatosin-odumosu-building-systems-for-africas-creative-economy/) — _247GospelVibes_
