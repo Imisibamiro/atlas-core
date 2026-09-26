@@ -1,0 +1,103 @@
+name: Supabase Recalculate Live Chart
+
+# Ownership moved from Imisibamiro/NGMC to this public atlas-core repo to run on
+# unlimited public-repo GitHub Actions minutes. Checks out the private NGMC repo
+# via a fine-grained PAT stored as secrets.NGMC_CHECKOUT_TOKEN.
+#
+# Required secrets on this repo (Imisibamiro/atlas-core):
+#   NGMC_CHECKOUT_TOKEN     — fine-grained PAT with contents:read on Imisibamiro/NGMC
+#   SUPABASE_URL            — https://<project>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY
+#   SUPABASE_DB_URL         — postgres:// pooler URL (with password)
+#   CLOUDFLARE_API_TOKEN
+#   CLOUDFLARE_CHART_API_REFRESH_TOKEN   (or CHART_API_REFRESH_TOKEN / CACHE_REFRESH_TOKEN)
+#
+# Required repo vars (optional):
+#   NGMC_RUNNER_LABEL       — override runner label (defaults to ubuntu-latest)
+#   SPOTIFY_ENABLE_SCORING  — defaults to 'true'
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_public_sync:
+        description: "Run public sync after successful recalc (not implemented here; dispatch cloudflare-public-sync on NGMC afterwards if you need it)"
+        required: false
+        type: boolean
+        default: false
+      ngmc_ref:
+        description: "Ref of Imisibamiro/NGMC to check out (branch, tag, or SHA). Defaults to main."
+        required: false
+        type: string
+        default: main
+  schedule:
+    # 03:17 UTC daily. Matches the NGMC copy so behaviour stays predictable
+    # while both exist; delete the NGMC schedule once this run is proven.
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-recalc-live-chart
+  cancel-in-progress: false
+
+jobs:
+  recalculate:
+    runs-on: ${{ vars.NGMC_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 90
+    env:
+      RECALC_DB_TARGET: supabase
+      SCRAPER_DB_TARGET: supabase
+      NGMC_CORE_READ_TARGET: supabase
+      NGMC_CORE_WRITE_TARGET: supabase
+      ATLAS_RECALC_SKIP_CALCULATION_RESULT: "1"
+      ATLAS_RECALC_UPDATE_CONCURRENCY: "4"
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_POSTGRES_URL: ${{ secrets.SUPABASE_DB_URL }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CHART_API_WORKER_URL: https://ngmc-chart-api.imisibamiro.workers.dev
+      CHART_API_REFRESH_TOKEN: ${{ secrets.CLOUDFLARE_CHART_API_REFRESH_TOKEN || secrets.CHART_API_REFRESH_TOKEN || secrets.CACHE_REFRESH_TOKEN }}
+      SPOTIFY_ENABLE_SCORING: ${{ vars.SPOTIFY_ENABLE_SCORING || 'true' }}
+
+    steps:
+      - name: Checkout Imisibamiro/NGMC (private)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: Imisibamiro/NGMC
+          ref: ${{ github.event.inputs.ngmc_ref || 'main' }}
+          token: ${{ secrets.NGMC_CHECKOUT_TOKEN }}
+          # Full history isn't needed — the recalc reads live data, not git history.
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "22.17.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply Supabase recalc migrations (idempotent-by-fingerprint)
+        run: npm run recalc:apply-migrations
+
+      - name: Sync chart-serving history to Supabase
+        run: npm run recalc:sync-history -- --supabase-only
+
+      - name: Verify Supabase chart-serving subset
+        run: npm run recalc:verify-subset -- --supabase-only
+
+      - name: Dump Supabase recalc input snapshot
+        run: |
+          set -euo pipefail
+          SNAPSHOT_DIR="${RUNNER_TEMP:-/tmp}/ngmc-recalc-snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "NGMC_RECALC_SNAPSHOT_DIR=${SNAPSHOT_DIR}" >> "${GITHUB_ENV}"
+          npm run recalc:dump-inputs -- "${SNAPSHOT_DIR}"
+
+      - name: Recalculate live chart on Atlas runner
+        run: npm run recalc:atlas
+
+      - name: Verify live admin sees Atlas recalc
+        run: npm run recalc:verify-admin
