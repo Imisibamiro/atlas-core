@@ -1,24 +1,31 @@
-# GA Daily Report — 2026-09-25
+# GA Daily Report — 2026-09-26
 
-**5** new items from 7 Nigerian gospel blogs
+**12** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- SelahAfrik: 2
+- 247GospelVibes: 5
+- GospelMinds: 4
+- GMusicPlus: 2
 - GospelHotspot: 1
-- GospelMinds: 1
-- 247GospelVibes: 1
 
 ### By Category
 
-## 🎵 New Music (1)
+## 🎵 New Music (11)
 
-- [DOWNLOAD MP3: Minister Osaye - Imiefan (Lyrics)](https://gospelminds.com/audio-music/mp3-minister-osaye-imiefan-lyrics/) — _GospelMinds_
+- [[Music + Video] You Are Worthy - Sunday Ekaidem x E-Daniels](https://gospelhotspot.net/music-video-you-are-worthy-sunday-ekaidem-x-e-daniels/) — _GospelHotspot_
+- [Esther TonyCheta Releases “Mi O Le Dase,” A Song About Depending On God](https://www.gmusicplus.com/esther-tonycheta-releases-mi-o-le-dase/) — _GMusicPlus_
+- [DOWNLOAD MP3: Vikani Patrick - The Greatest Mightiest God](https://gospelminds.com/audio-music/vikani-patrick-the-greatest-mightiest-god/) — _GospelMinds_
+- [DOWNLOAD MP3: Esther TonyCheta - Mi O Le Dase](https://gospelminds.com/audio-music/download-mp3-esther-tonycheta-mi-o-le-dase/) — _GospelMinds_
+- [DOWNLOAD MP3: Mercy Chinwo - My God (Video)](https://gospelminds.com/audio-music/download-mp3-mercy-chinwo-my-god/) — _GospelMinds_
+- [DOWNLOAD MP3: Sunday Ekaidem - You are Worthy ft. E-Daniels](https://gospelminds.com/audio-music/download-mp3-sunday-ekaidem-you-are-worthy-ft-e-daniels/) — _GospelMinds_
+- [Imiefan - Minister Osaye](https://247gospelvibes.com/imiefan-minister-osaye/) — _247GospelVibes_
+- [Laura Abios – Absolutely No One](https://247gospelvibes.com/laura-abios-absolutely-no-one/) — _247GospelVibes_
+- [Music: Sunday Ekaidem and. E-Daniels on You are Worthy](https://247gospelvibes.com/music-sunday-ekaidem-and-e-daniels-on-you-are-worthy/) — _247GospelVibes_
+- [Mercy Chinwo Releases Vibrant New Praise Anthem “My God”](https://247gospelvibes.com/mercy-chinwo-releases-vibrant-new-praise-anthem-my-god/) — _247GospelVibes_
+- [Esther TonyCheta Releases Heartfelt New Single “Mi O Le Dase”&#160;](https://247gospelvibes.com/esther-tonycheta-mi-o-le-dase/) — _247GospelVibes_
 
-## 📢 News (4)
+## 📢 News (1)
 
-- [The Honourees Are Here! CLIMA Africa 2026 Reveals Those Set To Be Celebrated At Its 10th Anniversary](https://gospelhotspot.net/the-honourees-are-here-clima-africa-2026-reveals-those-set-to-be-celebrated-at-its-10th-anniversary/) — _GospelHotspot_
-- [‘Eating Late At Night Can Make You Diabetic’ — Apostle Johnson Suleman Reveals](https://selahafrik.com/2026/09/eating-late-causes-diabetic/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=eating-late-causes-diabetic) — _SelahAfrik_
-- [Travis Greene Calls Out Pastors Who Excuse Members’ Sin Because They’re Victims Too](https://selahafrik.com/2026/09/pastors-excuse-members-sin/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=pastors-excuse-members-sin) — _SelahAfrik_
-- [Meet Prince Oluwatosin Odumosu: Building Systems for Africa'"'"'s Creative Economy](https://247gospelvibes.com/meet-prince-oluwatosin-odumosu-building-systems-for-africas-creative-economy/) — _247GospelVibes_
+- [Clima Africa 2026 Unveils Official Honourees as It Celebrates 10 Years of Kingdom Impact](https://www.gmusicplus.com/clima-africa-2026-unveils-official-honourees-as-it-celebrates-10-years-of-kingdom-impact/) — _GMusicPlus_
