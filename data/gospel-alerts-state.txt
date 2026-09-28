@@ -701,3 +701,5 @@ GMusicPlus|https://www.gmusicplus.com/?p=75487
 GospelMinds|https://gospelminds.com/?p=87020
 GospelMinds|https://gospelminds.com/?p=87014
 GospelMinds|https://gospelminds.com/?p=87011
+GospelHotspot|https://gospelhotspot.net/?p=85509
+GMusicPlus|https://www.gmusicplus.com/?p=75491
