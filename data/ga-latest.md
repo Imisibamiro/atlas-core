@@ -1,29 +1,28 @@
-# GA Daily Report — 2026-09-30
+# GA Daily Report — 2026-10-01
 
-**9** new items from 7 Nigerian gospel blogs
+**10** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelMinds: 6
-- SelahAfrik: 3
+- SelahAfrik: 5
+- 247GospelVibes: 4
+- PraiseWorldRadio: 1
 
 ### By Category
 
-## 🎵 New Music (4)
+## 🎵 New Music (6)
 
-- [Mp3: Minstrel Sammy - Olurapada ft. Gabriel Eziashi](https://gospelminds.com/audio-music/mp3-minstrel-sammy-olurapada-ft-gabriel-eziashi/) — _GospelMinds_
-- [MP3 + Lyrics: Gaise Baba - FIRE ft. Kaestrings (Video)](https://gospelminds.com/audio-music/mp3-lyrics-gaise-baba-fire-ft-kaestrings/) — _GospelMinds_
-- [Dunsin Oyekan Deep Worship Session At NSPPD UK Conference 2026](https://gospelminds.com/music-mp4/dunsin-oyekan-deep-worship-session-at-nsppd-uk-conference-2026/) — _GospelMinds_
-- [DOWNLOAD MP3: Sarah Ini - Heaven & Earth (Lyrics)](https://gospelminds.com/audio-music/mp3-sarah-ini-heaven-earth-lyrics/) — _GospelMinds_
-
-## 🎵 Mixtape (1)
-
-- [Nigerian Gospel Mixtape - Naija Praise Party 2026 Vol. 2 Download](https://gospelminds.com/audio-music/nigerian-gospel-mixtape-naija-praise-party-2026-vol-2-download/) — _GospelMinds_
+- [#SelahMusicVid: Sarah Ini’s “Heaven & Earth” Declares The Supremacy Of Christ](https://selahafrik.com/2026/09/heaven-earth-sarah-ini/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=heaven-earth-sarah-ini) — _SelahAfrik_
+- [MUSIC: Sunday Ekaidem - You are Worthy (feat. E-Daniels)](https://www.praiseworldradio.com/sunday-ekaidem-you-are-worthy/) — _PraiseWorldRadio_
+- [Mr M & Revelation - Worship the King (Live)](https://247gospelvibes.com/mr-m-revelation-worship-the-king-live/) — _247GospelVibes_
+- [Manuel Bless Releases New Worship Album, Remember To Shine Vol. 2](https://247gospelvibes.com/manuel-bless-remember-to-shine-vol-2/) — _247GospelVibes_
+- [Heaven & Earth – Sarah Ini](https://247gospelvibes.com/heaven-earth-sarah-ini/) — _247GospelVibes_
+- [Uniekgrace Joins Ugandan Gospel Star Coopy Bly on “Ebelebe,](https://247gospelvibes.com/uniekgrace-coopy-bly-ebelebe/) — _247GospelVibes_
 
 ## 📢 News (4)
 
-- [Bishop David Oyedepo was born a Muslim: His name was "Alhassan Bello](https://gospelminds.com/news/bishop-david-oyedepo-was-born-a-muslim-his-name-was-alhassan-bello/) — _GospelMinds_
-- [Apostle Joshua Selman Reveals Vision of High-Ranking Politician’s Passing](https://selahafrik.com/2026/09/high-ranking-politicians-passing/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=high-ranking-politicians-passing) — _SelahAfrik_
-- [“I Started Casting Out Demons At 17 or 18” — Gov. Monday Okpebholo](https://selahafrik.com/2026/09/cast-demons-monday-okpebholo/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=cast-demons-monday-okpebholo) — _SelahAfrik_
-- [Jerry Eze Apologizes After Worshippers Were Turned Away From Old Trafford Prayer Gathering](https://selahafrik.com/2026/09/worshippers-denied-old-trafford/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=worshippers-denied-old-trafford) — _SelahAfrik_
+- ["Mocking Apostle Arome Osayi Is Unacceptable – Pastor Femi Lazarus Tells VeryDarkMan](https://selahafrik.com/2026/10/mocking-arome-osayi-unacceptable/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=mocking-arome-osayi-unacceptable) — _SelahAfrik_
+- [Dr. Abel Damina Says Nigeria Has No Special Calling For Revival, Calls Out Christian Double Standards](https://selahafrik.com/2026/10/nigeria-no-calling-revival/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=nigeria-no-calling-revival) — _SelahAfrik_
+- [Eric Gugua Urges Christians To Stop Engaging In VDM & Apostle Arome Osayi Controversy](https://selahafrik.com/2026/10/vdm-arome-osayi-debate/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=vdm-arome-osayi-debate) — _SelahAfrik_
+- [Apostle Harrison Ayintete Calls Out Dr. Arome Osayi Over Dishonoring Ministers! Demands Apology](https://selahafrik.com/2026/10/arome-osayi-should-apologize/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=arome-osayi-should-apologize) — _SelahAfrik_
