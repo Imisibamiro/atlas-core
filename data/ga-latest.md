@@ -1,26 +1,19 @@
-# GA Daily Report — 2026-10-03
+# GA Daily Report — 2026-10-04
 
-**8** new items from 7 Nigerian gospel blogs
+**6** new items from 7 Nigerian gospel blogs
 
 ---
 
 ### By Source
-- GospelMinds: 5
-- SelahAfrik: 2
-- 247GospelVibes: 1
+- SelahAfrik: 6
 
 ### By Category
 
 ## 🎵 New Music (6)
 
-- [DOWNLOAD MP3: DJ Burn - The Greatest](https://gospelminds.com/audio-music/download-mp3-dj-burn-the-greatest/) — _GospelMinds_
-- [MP3 + VIDEO: Tosin Bee - Odogwu 2 ft. Lilian Nneji](https://gospelminds.com/audio-music/mp3-tosin-bee-odogwu-2-ft-lilian-nneji/) — _GospelMinds_
-- [DOWNLOAD MP3: Uniekgrace - Ebelebe ft Coopy Bly](https://gospelminds.com/audio-music/download-mp3-uniekgrace-ebelebe-ft-coopy-bly/) — _GospelMinds_
-- [DOWNLOAD ALBUM: Manuel Bless - Remember To Shine Vol. 2](https://gospelminds.com/audio-music/manuel-bless-remember-to-shine-vol-2/) — _GospelMinds_
-- [DOWNLOAD MP3: Ezinne Onwuaka - Jinin Yesu](https://gospelminds.com/audio-music/download-mp3-ezinne-onwuaka-jinin-yesu/) — _GospelMinds_
-- [Odogwu 2 – Tosin Bee ft. Lilian Nneji](https://247gospelvibes.com/odogwu-2-by-tosin-bee-ft-lilian-nneji/) — _247GospelVibes_
-
-## 📢 News (2)
-
-- [Apostle Michael Orokpo Calls Out VDM Over Mockery Of Arome Osayi’s Facial Palsy](https://selahafrik.com/2026/10/michael-orokpo-calls-vdm/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=michael-orokpo-calls-vdm) — _SelahAfrik_
-- [“Mocking Apostle Arome Osayi’s Face Is Demonic!” — Pastor Charles Osazuwa Hits Back at VDM](https://selahafrik.com/2026/10/mocking-arome-osayis-face/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=mocking-arome-osayis-face) — _SelahAfrik_
+- [#SelahMusicVid: Manuel Bless &#124; Remember To Shine Vol. 2 [Audio + Video]](https://selahafrik.com/2026/10/remember-shine-vol-manuel-bless/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=remember-shine-vol-manuel-bless) — _SelahAfrik_
+- [#SelahMusicVid: Ezinne Onwuaka &#124; Jinin Yesu [Audio + Video]](https://selahafrik.com/2026/10/jinin-yesu-ezinne-onwuaka/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=jinin-yesu-ezinne-onwuaka) — _SelahAfrik_
+- [Congolese Gospel Sensation Sara Kalengayi Teams Up With Nigerian Icon Ada Ehi For "He Has Done It Again"](https://selahafrik.com/2026/10/sara-kalengayi-ada-ehi-he-has-done-it-again/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=sara-kalengayi-ada-ehi-he-has-done-it-again) — _SelahAfrik_
+- [#SelahMusicVid: Minstrel Sammy &#124; Olurapada [Audio + Video] &#124; Feat. Gabriel Eziashi](https://selahafrik.com/2026/10/olurapada-minstrel-sammy/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=olurapada-minstrel-sammy) — _SelahAfrik_
+- [#SelahMusicVid: Mojisouls Declares The Supremacy Of God In “Oba” Featuring Pastor Tosin Ajolore](https://selahafrik.com/2026/10/oba-mojisouls/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=oba-mojisouls) — _SelahAfrik_
+- [SelahView: The Simple Power of Praise: A Look At Isaac Othuke Obiova’s “Jirowe Emmanuel”](https://selahafrik.com/2026/10/look-isaac-othuke-obiova-jirowe-emmanuel/?utm_source=rss&#038;utm_medium=rss&#038;utm_campaign=look-isaac-othuke-obiova-jirowe-emmanuel) — _SelahAfrik_
