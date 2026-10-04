@@ -119,6 +119,7 @@ name: "Run"
         type: string
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
@@ -972,6 +973,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve attempt context
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
+          RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
+        run: |
+          set -euo pipefail
+          CONTEXT=$(node scripts/resolve-run-context.mjs)
+          echo "NGMC_REFRESH_RUN_ID=$(jq -r '.id' <<< "$CONTEXT")" >> "$GITHUB_ENV"
+          echo "NGMC_ALBUM_REFRESH_RUN_ID=$(jq -r '.id' <<< "$CONTEXT")" >> "$GITHUB_ENV"
+          echo "NGMC_REFRESH_SNAPSHOT_AT=$(jq -r '.startedAt' <<< "$CONTEXT")" >> "$GITHUB_ENV"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -1102,6 +1116,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve attempt context
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
+          RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
+        run: |
+          set -euo pipefail
+          CONTEXT=$(node scripts/resolve-run-context.mjs)
+          echo "NGMC_REFRESH_RUN_ID=$(jq -r '.id' <<< "$CONTEXT")" >> "$GITHUB_ENV"
+          echo "NGMC_ALBUM_REFRESH_RUN_ID=$(jq -r '.id' <<< "$CONTEXT")" >> "$GITHUB_ENV"
+          echo "NGMC_REFRESH_SNAPSHOT_AT=$(jq -r '.startedAt' <<< "$CONTEXT")" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -1249,6 +1276,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve attempt context
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
+          RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
+        run: |
+          set -euo pipefail
+          CONTEXT=$(node scripts/resolve-run-context.mjs)
+          echo "NGMC_REFRESH_RUN_ID=$(jq -r '.id' <<< "$CONTEXT")" >> "$GITHUB_ENV"
+          echo "NGMC_ALBUM_REFRESH_RUN_ID=$(jq -r '.id' <<< "$CONTEXT")" >> "$GITHUB_ENV"
+          echo "NGMC_REFRESH_SNAPSHOT_AT=$(jq -r '.startedAt' <<< "$CONTEXT")" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
