@@ -1,0 +1,837 @@
+name: "Run"
+
+"on":
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Runner job"
+        required: true
+        default: "stale-retry"
+        type: string
+      source:
+        description: "Dispatch source"
+        required: false
+        default: "manual"
+        type: string
+      cron:
+        description: "Cron expression or manual marker"
+        required: false
+        default: "manual"
+        type: string
+      dispatched_at:
+        description: "Dispatch timestamp"
+        required: false
+        type: string
+      dry_run:
+        description: "Run without writing changes"
+        required: false
+        default: "false"
+        type: string
+      max_items:
+        description: "Optional item limit for smoke runs"
+        required: false
+        default: "0"
+        type: string
+      artists:
+        description: "Optional comma-separated exact artist names for a targeted discovery or refresh"
+        required: false
+        default: ""
+        type: string
+      debug_video_id:
+        description: "Optional exact YouTube video ID for write-safe Discovery evidence diagnostics"
+        required: false
+        default: ""
+        type: string
+      artist_shards:
+        description: "JSON array of comma-separated artist batches for bounded album fanout"
+        required: false
+        default: '[""]'
+        type: string
+      target_album_ids:
+        description: "Optional comma-separated exact private album IDs for a bounded album evidence refresh"
+        required: false
+        default: ""
+        type: string
+      target_track_ids:
+        description: "Optional comma-separated exact track IDs for a Spotify-only recovery"
+        required: false
+        default: ""
+        type: string
+      target_official_video_track_ids:
+        description: "Optional comma-separated exact track IDs for a targeted official-video refresh"
+        required: false
+        default: ""
+        type: string
+      canonical_song_id:
+        description: "Optional canonical song ID for a read-only source-track membership audit"
+        required: false
+        default: ""
+        type: string
+      job_run_id:
+        description: "Optional Cloudflare/admin job id to report back against"
+        required: false
+        default: ""
+        type: string
+      retry_failed_part:
+        description: "Allow a named provider part to reopen a failed fanout run (manual recovery only)"
+        required: false
+        default: "false"
+        type: string
+      classifier_job_id:
+        description: "Optional classifier job id that fanout finalization must wait for"
+        required: false
+        default: ""
+        type: string
+      classifier_timeout_seconds:
+        description: "Classifier watchdog alert threshold in seconds"
+        required: false
+        default: "3600"
+        type: string
+      batch_size:
+        description: "Optional classifier batch size"
+        required: false
+        default: "50"
+        type: string
+      include_legacy:
+        description: "Whether classifier should include legacy unclassified rows"
+        required: false
+        default: "false"
+        type: string
+      skip_recalc:
+        description: "Skip the recalculation after finalize (sample/test runs only — protects the live preview)"
+        required: false
+        default: "false"
+        type: string
+      recalculate_mode:
+        description: "Optional native recalc mode: daily (default) or weekly-close"
+        required: false
+        default: "daily"
+        type: string
+      issue_week:
+        description: "Optional YYYY-MM-DD issue week for a weekly-close recalculation"
+        required: false
+        default: ""
+        type: string
+      bundle_sha256:
+        description: "Optional immutable runner bundle SHA-256 pin"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: runner-${{ github.event.inputs.job || github.run_id }}
+  cancel-in-progress: false
+
+env:
+  PLATFORM_LINKS_READ_AUDIOMACK: "1"
+  PLATFORM_LINKS_READ_DEEZER: "1"
+  PLATFORM_LINKS_READ_BOOMPLAY: "1"
+  PLATFORM_LINKS_READ_SPOTIFY: "1"
+  PLATFORM_LINKS_READ_YOUTUBE: "1"
+
+jobs:
+  plan-full-discovery-shards:
+    if: ${{ github.event.inputs.job == 'full-discovery' }}
+    runs-on: ubuntu-latest
+    environment: full-discovery
+    timeout-minutes: 30
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    env:
+      RUNNER_KEY_JOB: full-discovery
+      DISCOVERY_ARTIST_FILTER: ${{ github.event.inputs.artists }}
+      DISCOVERY_SHARD_COUNT: "8"
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Install bundle deps
+        run: bash src/atlas/scripts/ci-bundle.sh deps-min
+      - name: Build balanced discovery shard matrix
+        id: plan
+        run: |
+          set -euo pipefail
+          MATRIX="$(node src/atlas/scripts/plan-full-discovery-shards.mjs)"
+          echo "${MATRIX}" | jq -e '.include | length >= 1 and length <= 8' >/dev/null
+          echo "${MATRIX}"
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+
+  same-song-classifier-test:
+    if: ${{ github.event.inputs.job == 'same-song-classifier-test' }}
+    runs-on: ubuntu-latest
+    environment: song-resolver-check
+    timeout-minutes: 90
+    env:
+      LYRICA_COMMIT: f6cb25192f0dff7901772d7fe7bba89fea1cdd44
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch scripts/lyrics-pilot/pairs.json scripts/lyrics-pilot/run_pilot.py scripts/audio-fingerprint/same_recording.py
+      - name: Check out Lyrica (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: thinkely/Lyrica
+          ref: ${{ env.LYRICA_COMMIT }}
+          path: lyrica
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: bash src/atlas/scripts/ci-same-song.sh install
+
+      - name: Start local service
+        run: bash src/atlas/scripts/ci-same-song.sh lyrica-start
+
+      - name: Run test
+        run: bash src/atlas/scripts/ci-same-song.sh test
+
+      - name: Service errors (status lines only)
+        if: always()
+        run: bash src/atlas/scripts/ci-same-song.sh lyrica-errors
+
+      - name: Upload scores
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: same-song-classifier-scores
+          path: ${{ runner.temp }}/same-song-out/
+          retention-days: 3
+          if-no-files-found: warn
+
+  same-song-classifier-train:
+    if: ${{ github.event.inputs.job == 'same-song-classifier-train' }}
+    runs-on: ubuntu-latest
+    environment: song-resolver-check
+    timeout-minutes: 120
+    env:
+      LYRICA_COMMIT: f6cb25192f0dff7901772d7fe7bba89fea1cdd44
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch scripts/same-song/dataset.json scripts/lyrics-pilot/run_pilot.py scripts/audio-fingerprint/same_recording.py
+      - name: Check out Lyrica (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: thinkely/Lyrica
+          ref: ${{ env.LYRICA_COMMIT }}
+          path: lyrica
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: bash src/atlas/scripts/ci-same-song.sh install "pyjwt[crypto]"
+
+      - name: Fetch configuration
+        run: bash src/atlas/scripts/ci-same-song.sh train-keys
+
+      - name: Restore feature cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/same-song-cache
+          key: same-song-features-v3-${{ github.run_id }}
+          restore-keys: |
+            same-song-features-v3-
+            same-song-features-v2-
+            same-song-features-v1-
+
+      - name: Start local service
+        run: bash src/atlas/scripts/ci-same-song.sh lyrica-start
+
+      - name: Train and benchmark
+        timeout-minutes: 105
+        run: bash src/atlas/scripts/ci-same-song.sh train
+
+      - name: Service errors (status lines only)
+        if: always()
+        run: bash src/atlas/scripts/ci-same-song.sh lyrica-errors
+
+      - name: Upload scores
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: same-song-classifier-train
+          path: ${{ runner.temp }}/same-song-train-out/
+          retention-days: 3
+          if-no-files-found: warn
+
+  run:
+    needs: plan-full-discovery-shards
+    if: ${{ always() && github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' && github.event.inputs.job != 'same-song-classifier-test' && github.event.inputs.job != 'same-song-classifier-train' && (github.event.inputs.job != 'full-discovery' || needs.plan-full-discovery-shards.result == 'success') }}
+    name: ${{ github.event.inputs.job == 'full-discovery' && format('discovery-scan ({0}, {1} artists, {2} work)', matrix.shard, matrix.artist_count, matrix.estimated_work) || 'run' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job }}
+    timeout-minutes: ${{ github.event.inputs.job == 'full-discovery' && 360 || 180 }}
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ github.event.inputs.job == 'full-discovery' && 8 || 2 }}
+      matrix: ${{ fromJSON(github.event.inputs.job == 'full-discovery' && needs.plan-full-discovery-shards.outputs.matrix || format('{{"artist_shard":{0}}}', github.event.inputs.artist_shards || '[""]')) }}
+    env:
+      RUNNER_JOB: ${{ github.event.inputs.job }}
+      RUNNER_KEY_JOB: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      DISCOVERY_DEBUG_VIDEO_ID: ${{ github.event.inputs.debug_video_id }}
+      R_RETRY_PART: ${{ github.event.inputs.retry_failed_part }}
+      ARTIST_DISCOVERY_CONCURRENCY: "2"
+      RUNNER_TIMEOUT_MS: ${{ github.event.inputs.job == 'full-discovery' && '21000000' || '10800000' }}
+      R_ARTISTS: ${{ matrix.artist_ids && ' ' || matrix.artist_shard || github.event.inputs.artists }}
+      R_ARTIST_IDS: ${{ matrix.artist_ids || '' }}
+      R_SHARD: ${{ matrix.shard || '' }}
+      ALBUM_COLLECTOR_ATLAS_CONCURRENCY: ${{ matrix.artist_shard && '3' || '6' }}
+      ALBUM_COLLECTOR_DEFER_FINALIZE: ${{ matrix.artist_shard && '1' || '0' }}
+      SPOTIFY_TARGET_TRACK_IDS: ${{ github.event.inputs.target_track_ids }}
+      YOUTUBE_APPLE_GUARD_TARGET_TRACK_IDS: ${{ github.event.inputs.target_official_video_track_ids }}
+      CANONICAL_SONG_ID: ${{ github.event.inputs.canonical_song_id }}
+      R_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
+      R_JOB_RUN_ID: ${{ github.event.inputs.job_run_id }}
+      R_REFRESH_ID: ${{ github.event.inputs.job_run_id }}
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.job_run_id }}
+      CLASSIFIER_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
+      CLASSIFIER_INCLUDE_LEGACY: ${{ github.event.inputs.include_legacy }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh --export-a --export-b
+      - name: Audit membership
+        if: ${{ github.event.inputs.canonical_song_id != '' }}
+        run: bash src/atlas/scripts/ci-canonical-audit.sh
+
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Cache bundle dependency downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/pip
+          key: deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/atlas/package.json', '.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/pipelines/sp/package-lock.json', '.runner-bundle/pipelines/sp/package.json', '.runner-bundle/**/requirements.txt') }}
+          restore-keys: |
+            deps-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Cache models and previews
+        if: ${{ github.event.inputs.job == 'classifier-classify' || github.event.inputs.job == 'classifier-retrain' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            .runner-bundle/.venv
+            ~/.cache/cls
+            ~/.cache/huggingface
+            ~/.cache/torch
+          key: classifier-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.runner-bundle/scripts/classifier/requirements-classifier.txt', '.runner-bundle/models/*.joblib') }}
+          restore-keys: |
+            classifier-${{ runner.os }}-${{ runner.arch }}-py312-
+
+      - name: Cache audio analysers
+        if: ${{ github.event.inputs.job == 'song-resolver-check' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/aud
+            ~/panns_data
+            ~/.cache/torch
+          key: aud-${{ runner.os }}-${{ runner.arch }}-v1-${{ hashFiles('.runner-bundle/scripts/audio-fingerprint/install-audio-analysers-linux.sh', '.runner-bundle/scripts/audio-fingerprint/panako/PanakoPair.java') }}
+          restore-keys: |
+            aud-${{ runner.os }}-${{ runner.arch }}-v1-
+
+      - name: Install audio backend
+        if: ${{ github.event.inputs.job == 'song-resolver-check' }}
+        run: bash src/atlas/scripts/ci-audio.sh install
+
+      - name: Install scorer deps
+        if: ${{ github.event.inputs.job == 'song-resolver-check' }}
+        run: bash src/atlas/scripts/ci-audio.sh scorer
+
+      - name: Install classifier audio backend
+        if: ${{ github.event.inputs.job == 'classifier-classify' || github.event.inputs.job == 'classifier-retrain' }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Prepare Playwright browser cache path
+        run: mkdir -p ~/.cache/ms-playwright
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/pipelines/sp/package-lock.json', '.runner-bundle/pipelines/sp/package.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install bundle deps
+        run: bash src/atlas/scripts/ci-bundle.sh deps-run
+      - name: Run job
+        id: run_job
+        if: ${{ github.event.inputs.canonical_song_id == '' }}
+        run: node src/atlas/scripts/run.mjs
+
+      - name: Upload report
+        if: ${{ always() && github.event.inputs.job == 'identity-check' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-check-report
+          path: |
+            .runner-bundle/reports/identity-check.md
+            .runner-bundle/reports/identity-check.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Notify status
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          STEP_OUTCOME: ${{ steps.run_job.outcome }}
+          STEP_CONCLUSION: ${{ steps.run_job.conclusion }}
+        run: bash src/atlas/scripts/ci-report.sh
+
+  full-discovery-classifier-handoff:
+    needs: [plan-full-discovery-shards, run]
+    if: ${{ github.event.inputs.job == 'full-discovery' && needs.plan-full-discovery-shards.result == 'success' && needs.run.result == 'success' && github.event.inputs.dry_run != 'true' && github.event.inputs.artists == '' }}
+    runs-on: ubuntu-latest
+    environment: full-discovery
+    timeout-minutes: 20
+    env:
+      RUNNER_KEY_JOB: full-discovery
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh
+      - name: Queue follow-up after all discovery shards
+        run: bash src/atlas/scripts/ci-handoff.sh
+
+  album-finalize:
+    needs: run
+    if: ${{ always() && github.event.inputs.job == 'album-collect' && github.event.inputs.artist_shards != '[""]' && needs.run.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: album-collect
+    timeout-minutes: 60
+    env:
+      RUNNER_JOB: album-collect-finalize
+      RUNNER_KEY_JOB: album-collect
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: "0"
+      R_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh --export-a
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Install bundle deps
+        run: bash src/atlas/scripts/ci-bundle.sh deps-min
+      - name: Finalize album preview once
+        run: node src/atlas/scripts/run.mjs
+
+  recalculate:
+    if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
+    runs-on: ubuntu-latest
+    environment: recalculate-live-chart
+    timeout-minutes: 120
+    env:
+      RUNNER_JOB: ${{ github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      R_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      SCRAPER_DB_TARGET: cloudflare
+      R_CAPTURE_BASELINES: '1'
+      RECALC_DB_TARGET: cloudflare
+      R_STORE_READ: d1
+      R_STORE_WRITE: d1
+      RUNNER_KEY_JOB: recalculate-live-chart
+      RECALC_MODE: ${{ github.event.inputs.recalculate_mode }}
+      RECALC_WEEK: ${{ github.event.inputs.issue_week }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Install bundle deps
+        run: bash src/atlas/scripts/ci-bundle.sh deps-min
+      - name: Recalculate
+        id: recalc
+        run: bash src/atlas/scripts/ci-recalc.sh job
+
+  prepare-fanout:
+    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'album-refresh' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.job == 'album-refresh' && 'album-collect' || 'daily-refresh-fanout-start' }}
+    timeout-minutes: 180
+    env:
+      RUNNER_JOB: ${{ github.event.inputs.job == 'album-refresh' && 'album-refresh-start' || format('{0}-start', github.event.inputs.job) }}
+      RUNNER_KEY_JOB: ${{ github.event.inputs.job == 'album-refresh' && 'album-collect' || 'daily-refresh-fanout-start' }}
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      R_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
+      R_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      SCRAPER_DB_TARGET: cloudflare
+      R_CAPTURE_BASELINES: '1'
+      RECALC_DB_TARGET: cloudflare
+      R_STORE_READ: d1
+      R_STORE_WRITE: d1
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Resolve attempt context
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
+          RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
+        run: bash src/atlas/scripts/ci-resolve-context.sh
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Install bundle deps
+        run: bash src/atlas/scripts/ci-bundle.sh deps-min
+      - name: Start fanout run
+        id: start
+        run: node src/atlas/scripts/run.mjs
+
+      - name: Prepare metadata once before provider fanout
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        env:
+          RUNNER_JOB: ${{ github.event.inputs.job }}-prepare
+        run: node src/atlas/scripts/run.mjs
+
+  provider-fanout:
+    needs: prepare-fanout
+    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'album-refresh' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.job == 'album-refresh' && 'album-collect' || matrix.runner_job }}
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(github.event.inputs.job == 'album-refresh' && '{"include":[{"part":"youtube-1","runner_job":"album-refresh-provider:youtube","shard_index":"0"},{"part":"youtube-2","runner_job":"album-refresh-provider:youtube","shard_index":"1"},{"part":"youtube-3","runner_job":"album-refresh-provider:youtube","shard_index":"2"},{"part":"youtube-4","runner_job":"album-refresh-provider:youtube","shard_index":"3"},{"part":"audiomack-1","runner_job":"album-refresh-provider:audiomack","shard_index":"0"},{"part":"audiomack-2","runner_job":"album-refresh-provider:audiomack","shard_index":"1"},{"part":"audiomack-3","runner_job":"album-refresh-provider:audiomack","shard_index":"2"},{"part":"audiomack-4","runner_job":"album-refresh-provider:audiomack","shard_index":"3"},{"part":"spotify-1","runner_job":"album-refresh-provider:spotify","shard_index":"0"},{"part":"spotify-2","runner_job":"album-refresh-provider:spotify","shard_index":"1"},{"part":"spotify-3","runner_job":"album-refresh-provider:spotify","shard_index":"2"},{"part":"spotify-4","runner_job":"album-refresh-provider:spotify","shard_index":"3"}]}' || '{"include":[{"part":"p1","runner_job":"refresh-part:p1"},{"part":"p2","runner_job":"refresh-part:p2"},{"part":"p3","runner_job":"refresh-part:p3"},{"part":"p4","runner_job":"refresh-part:p4"},{"part":"p5","runner_job":"refresh-part:p5"}]}') }}
+    env:
+      RUNNER_JOB: ${{ matrix.runner_job }}
+      RUNNER_KEY_JOB: ${{ github.event.inputs.job == 'album-refresh' && 'album-collect' || matrix.runner_job }}
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      RUNNER_TIMEOUT_MS: "17400000"
+      SCRAPER_DB_TARGET: cloudflare
+      R_CAPTURE_BASELINES: '1'
+      RECALC_DB_TARGET: cloudflare
+      R_STORE_READ: d1
+      R_STORE_WRITE: d1
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
+      R_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_ALBUM_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_ALBUM_SHARD_INDEX: ${{ matrix.shard_index || '0' }}
+      R_ALBUM_SHARD_COUNT: ${{ github.event.inputs.job == 'album-refresh' && '4' || '1' }}
+      R_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Resolve attempt context
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
+          RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
+        run: bash src/atlas/scripts/ci-resolve-context.sh
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Cache bundle dependency downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/pip
+          key: fanout-deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/**/requirements.txt') }}
+          restore-keys: |
+            fanout-deps-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Prepare Playwright browser cache path
+        run: mkdir -p ~/.cache/ms-playwright
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: fanout-playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json') }}
+          restore-keys: |
+            fanout-playwright-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install bundle deps
+        run: bash src/atlas/scripts/ci-bundle.sh deps-full
+      - name: Run provider part
+        run: node src/atlas/scripts/run.mjs
+
+  finalize-fanout:
+    needs: [prepare-fanout, provider-fanout]
+    if: ${{ always() && (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'daily-refresh-fanout-finalize' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize' || github.event.inputs.job == 'album-refresh' || github.event.inputs.job == 'album-refresh-finalize') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ (github.event.inputs.job == 'album-refresh' || github.event.inputs.job == 'album-refresh-finalize') && 'album-collect' || 'daily-refresh-fanout-finalize' }}
+    timeout-minutes: 360
+    env:
+      RUNNER_JOB: ${{ github.event.inputs.job == 'album-refresh' && 'album-refresh-finalize' || github.event.inputs.job == 'album-refresh-finalize' && github.event.inputs.job || (github.event.inputs.job == 'daily-refresh-fanout-finalize' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize') && github.event.inputs.job || format('{0}-finalize', github.event.inputs.job) }}
+      RUNNER_KEY_JOB: ${{ (github.event.inputs.job == 'album-refresh' || github.event.inputs.job == 'album-refresh-finalize') && 'album-collect' || 'daily-refresh-fanout-finalize' }}
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job == 'daily-refresh-fanout-finalize' && 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize' && 'full-discovery-refresh-fanout' || github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job == 'daily-refresh-fanout-finalize' && 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize' && 'full-discovery-refresh-fanout' || github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      PROVIDER_FANOUT_RESULT: ${{ needs.provider-fanout.result || 'manual' }}
+      SCRAPER_DB_TARGET: cloudflare
+      R_CAPTURE_BASELINES: '1'
+      RECALC_DB_TARGET: cloudflare
+      R_STORE_READ: d1
+      R_STORE_WRITE: d1
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
+      R_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_ALBUM_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Resolve attempt context
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
+          RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
+        run: bash src/atlas/scripts/ci-resolve-context.sh
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh
+      - name: Fetch runner bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Install bundle deps
+        run: bash src/atlas/scripts/ci-bundle.sh deps-min
+      - name: Close failed provider fanout
+        if: ${{ (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout') && needs.provider-fanout.result != 'success' }}
+        run: bash src/atlas/scripts/ci-fail-open.sh
+
+      - name: Check provider fanout result
+        if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' }}
+        run: |
+          set -euo pipefail
+          if [ "${PROVIDER_FANOUT_RESULT}" != "success" ]; then
+            echo "::error::Provider fanout did not complete successfully: ${PROVIDER_FANOUT_RESULT}"
+            echo "Finalize is skipped because provider parts are incomplete."
+            exit 1
+          fi
+
+      - name: Finalize fanout
+        run: node src/atlas/scripts/run.mjs
+
+      - name: Verify finalized batch
+        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize'
+        run: bash src/atlas/scripts/ci-verify-batch.sh
+
+      - name: Wait for snapshot drain
+        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.skip_recalc != 'true' && vars.HOLD_RECALC != 'true'
+        run: bash src/atlas/scripts/ci-drain-wait.sh
+
+      - name: Recalculate
+        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.skip_recalc != 'true' && vars.HOLD_RECALC != 'true'
+        id: recalc
+        run: bash src/atlas/scripts/ci-recalc.sh after
+
+      - name: Sync public data
+        if: env.RUNNER_DRY_RUN != 'true' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.skip_recalc != 'true' && vars.HOLD_RECALC != 'true'
+        run: bash src/atlas/scripts/ci-public-sync.sh
+
+      - name: Write refresh report
+        if: always() && steps.recalc.outcome != 'skipped'
+        env:
+          RECALC_EXIT: ${{ steps.recalc.outputs.recalc_exit || '1' }}
+        run: bash src/atlas/scripts/ci-refresh-report.sh
+
+      - name: Enforce provider refresh outcome
+        if: always() && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize'
+        run: bash src/atlas/scripts/ci-enforce.sh

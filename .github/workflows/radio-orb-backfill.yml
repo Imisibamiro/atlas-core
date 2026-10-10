@@ -1,0 +1,55 @@
+name: Radio ORB backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_stations:
+        description: "Limit stations for a smoke run (0 = all pending)"
+        required: false
+        default: "0"
+        type: string
+      concurrency:
+        description: "Parallel OnlineRadioBox fetches"
+        required: false
+        default: "5"
+        type: string
+      dry_run:
+        description: "Fetch pages but post nothing to the radio worker"
+        required: false
+        default: "false"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radio-orb-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Catch up pending stations
+        env:
+          RADIO_ADMIN_TOKEN: ${{ secrets.RADIO_ADMIN_TOKEN }}
+          MAX_STATIONS: ${{ inputs.max_stations }}
+          ORB_CONCURRENCY: ${{ inputs.concurrency }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          DEADLINE_MINUTES: "170"
+        run: node src/atlas/scripts/radio-orb-backfill.mjs

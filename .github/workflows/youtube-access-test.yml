@@ -1,0 +1,139 @@
+name: youtube-access-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: "Rounds (consistency check)"
+        default: "2"
+      round_pause:
+        description: "Seconds between rounds"
+        default: "900"
+      limit:
+        description: "Videos (max 40)"
+        default: "40"
+      c_limit:
+        description: "Videos per player client in method C"
+        default: "20"
+      clients:
+        description: "Player clients for C"
+        default: "mweb,tv,tv_simply,web_safari,web_embedded,android_vr,ios,android"
+      audio_n:
+        description: "Videos for the bestaudio check (0 = skip)"
+        default: "5"
+      methods:
+        description: "Methods to run"
+        default: "A,B,C,D,E1,E2,E3,F,AUDIO"
+      chain:
+        description: "F fallback order (cookies D last to protect the throwaway account)"
+        default: "B,C:mweb,C:web_safari,E1,E2,LRCLIB,NETEASE,D"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: youtube-access-test
+  cancel-in-progress: false
+
+jobs:
+  youtube-access-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      YTDLP_VERSION: "2026.8.19"
+      BGUTIL_VERSION: "2.0.1"
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned tools
+        run: |
+          python -m venv "$RUNNER_TEMP/venv-a"
+          python -m venv "$RUNNER_TEMP/venv-b"
+          "$RUNNER_TEMP/venv-a/bin/pip" install -q "yt-dlp[default,pin,pin-deno,curl-cffi]==${YTDLP_VERSION}" \
+            "youtube-transcript-api==1.2.4" "ytmusicapi==1.12.3"
+          "$RUNNER_TEMP/venv-b/bin/pip" install -q "yt-dlp[default,pin,pin-deno,curl-cffi]==${YTDLP_VERSION}" \
+            "bgutil-ytdlp-pot-provider==${BGUTIL_VERSION}"
+          "$RUNNER_TEMP/venv-a/bin/yt-dlp" --version
+          "$RUNNER_TEMP/venv-b/bin/yt-dlp" --version
+
+      - name: Start bgutil PO-token server (pinned image, localhost only)
+        run: |
+          docker run --name bgutil -d --init -p 127.0.0.1:4416:4416 "brainicism/bgutil-ytdlp-pot-provider:${BGUTIL_VERSION}" >/dev/null
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4416/ping >/dev/null && break; sleep 2; done
+          curl -sf http://127.0.0.1:4416/ping | python -c "import json,sys; print('bgutil server', json.load(sys.stdin).get('version'))"
+
+      - name: Write cookies file if secret present (never echoed)
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+        run: |
+          if [ -n "$YT_COOKIES" ]; then
+            umask 077
+            printf '%s\n' "$YT_COOKIES" > "$RUNNER_TEMP/yt-cookies.txt"
+            chmod 600 "$RUNNER_TEMP/yt-cookies.txt"
+            echo "cookies: present ($(grep -c . "$RUNNER_TEMP/yt-cookies.txt") lines)"
+          else
+            echo "cookies: absent, method D skipped"
+          fi
+
+      - name: Run access test
+        run: |
+          COOKIE_ARG=""
+          [ -s "$RUNNER_TEMP/yt-cookies.txt" ] && COOKIE_ARG="$RUNNER_TEMP/yt-cookies.txt"
+          "$RUNNER_TEMP/venv-a/bin/python" src/atlas/scripts/youtube-access-test.py \
+            --ids src/atlas/scripts/youtube-access-test-ids.json \
+            --out "$RUNNER_TEMP/yat-out" \
+            --ytdlp-a "$RUNNER_TEMP/venv-a/bin/yt-dlp" \
+            --ytdlp-b "$RUNNER_TEMP/venv-b/bin/yt-dlp" \
+            --cookies "$COOKIE_ARG" \
+            --rounds "${{ inputs.rounds }}" \
+            --round-pause "${{ inputs.round_pause }}" \
+            --limit "${{ inputs.limit }}" \
+            --c-limit "${{ inputs.c_limit }}" \
+            --clients "${{ inputs.clients }}" \
+            --audio-n "${{ inputs.audio_n }}" \
+            --methods "${{ inputs.methods }}" \
+            --chain "${{ inputs.chain }}"
+
+      - name: PO-token server stats (counts only; tokens never printed)
+        if: always()
+        run: |
+          echo "POT generations: $(docker logs bgutil 2>&1 | grep -c 'Generating POT' || true)"
+          echo "POT server errors: $(docker logs bgutil 2>&1 | grep -ci 'error' || true)"
+
+      - name: Remove cookies and caches
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/yt-cookies.txt"
+          rm -rf "$RUNNER_TEMP/yat-out/ytdlp-cache"
+          docker rm -f bgutil >/dev/null 2>&1 || true
+
+      - name: Leak check before upload (flags-only files)
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/yat-out" 2>/dev/null || exit 0
+          ls -1
+          if grep -lE 'WEBVTT|-->|youtube\.com\s+TRUE|SAPISID|__Secure-' results.jsonl summary.md; then
+            echo "leak check failed"; rm -f results.jsonl summary.md; exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: youtube-access-test-results
+          path: |
+            ${{ runner.temp }}/yat-out/results.jsonl
+            ${{ runner.temp }}/yat-out/summary.md
+          retention-days: 7
+          if-no-files-found: ignore

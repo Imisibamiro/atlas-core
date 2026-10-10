@@ -1,0 +1,77 @@
+name: GA
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run the scraper but send nothing and keep no state"
+        required: false
+        default: "false"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      STATE_DIR: /tmp/st
+      STATE_FILE: /tmp/st/s.txt
+      REPORT_FILE: /tmp/st/r.md
+      ITEMS_FILE: /tmp/items.json
+      PAYLOAD_FILE: /tmp/payload.json
+
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/st
+          key: st-${{ github.run_id }}
+          restore-keys: |
+            st-
+
+      - name: Run
+        id: scraper
+        run: bash src/atlas/scripts/ga-run.sh
+
+      - name: Check new items
+        id: check
+        run: |
+          N=$(wc -l < "${ITEMS_FILE}" 2>/dev/null || echo 0)
+          echo "count=${N}" >> "${GITHUB_OUTPUT}"
+          echo "Found ${N} new items"
+
+      - name: Build report and payload
+        if: steps.check.outputs.count > 0
+        run: python3 src/atlas/scripts/ga-report.py
+
+      - name: Save state
+        if: github.event.inputs.dry_run != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/st
+          key: st-${{ github.run_id }}
+
+      - name: Send message
+        if: steps.check.outputs.count > 0 && github.event.inputs.dry_run != 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          [ -z "${DISCORD_WEBHOOK_URL}" ] && { echo "No webhook secret"; exit 0; }
+          curl -sS -f -X POST "${DISCORD_WEBHOOK_URL}" \
+            -H "Content-Type: application/json" \
+            -d @"${PAYLOAD_FILE}" && echo "Sent OK"
