@@ -578,6 +578,10 @@ jobs:
 
   prepare-fanout:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'album-refresh' }}
+    outputs:
+      refresh_id: ${{ steps.capture-context.outputs.refresh_id }}
+      snapshot_at: ${{ steps.capture-context.outputs.snapshot_at }}
+      context_attempt: ${{ steps.capture-context.outputs.context_attempt }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.event.inputs.job == 'album-refresh' && 'album-collect' || 'daily-refresh-fanout-start' }}
@@ -627,10 +631,19 @@ jobs:
       - name: Configuration
         run: bash src/atlas/scripts/ci-keys.sh
       - name: Fetch runner bundle
+        id: fetch-bundle
         env:
           RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
         run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Cache installed bundle dependencies
+        id: bundle-deps-cache
+        uses: actions/cache@v4
+        with:
+          path: .runner-bundle/node_modules
+          key: bundle-installed-${{ runner.os }}-${{ runner.arch }}-${{ steps.fetch-bundle.outputs.sha256 }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/**/package-lock.json', '.runner-bundle/**/package.json', '.runner-bundle/**/requirements.txt') }}
       - name: Install bundle deps
+        env:
+          RUNNER_BUNDLE_DEPS_CACHE_HIT: ${{ steps.bundle-deps-cache.outputs.cache-hit }}
         run: bash src/atlas/scripts/ci-bundle.sh deps-min
       - name: Start fanout run
         id: start
@@ -641,6 +654,13 @@ jobs:
         env:
           RUNNER_JOB: ${{ github.event.inputs.job }}-prepare
         run: node src/atlas/scripts/run.mjs
+      - name: Capture prepared context
+        id: capture-context
+        run: |
+          set -euo pipefail
+          echo "refresh_id=${R_REFRESH_ID}" >> "${GITHUB_OUTPUT}"
+          echo "snapshot_at=${R_SNAPSHOT_AT:-${RUNNER_DISPATCHED_AT:-}}" >> "${GITHUB_OUTPUT}"
+          echo "context_attempt=${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_OUTPUT}"
 
   provider-fanout:
     needs: prepare-fanout
@@ -671,11 +691,14 @@ jobs:
       R_STORE_WRITE: d1
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
-      R_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
-      R_ALBUM_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id }}
+      R_ALBUM_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id }}
       R_ALBUM_SHARD_INDEX: ${{ matrix.shard_index || '0' }}
       R_ALBUM_SHARD_COUNT: ${{ github.event.inputs.job == 'album-refresh' && '4' || '1' }}
-      R_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      R_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
+      PREPARED_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id }}
+      PREPARED_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
+      PREPARED_RUN_ATTEMPT: ${{ needs.prepare-fanout.outputs.context_attempt }}
       KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
     steps:
       - name: Source
@@ -687,17 +710,13 @@ jobs:
           sparse-checkout: /atlas/
           sparse-checkout-cone-mode: false
           persist-credentials: false
-      - name: Resolve attempt context
-        if: ${{ github.event.inputs.job != 'album-refresh' }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
-          RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
-        run: bash src/atlas/scripts/ci-resolve-context.sh
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Resolve prepared fanout context
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        run: node src/atlas/scripts/resolve-fanout-context.mjs
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -705,9 +724,16 @@ jobs:
       - name: Configuration
         run: bash src/atlas/scripts/ci-keys.sh
       - name: Fetch runner bundle
+        id: fetch-bundle
         env:
           RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
         run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Cache installed bundle dependencies
+        id: bundle-deps-cache
+        uses: actions/cache@v4
+        with:
+          path: .runner-bundle/node_modules
+          key: bundle-installed-${{ runner.os }}-${{ runner.arch }}-${{ steps.fetch-bundle.outputs.sha256 }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/**/package-lock.json', '.runner-bundle/**/package.json', '.runner-bundle/**/requirements.txt') }}
       - name: Cache bundle dependency downloads
         uses: actions/cache@v4
         with:
@@ -730,6 +756,8 @@ jobs:
             fanout-playwright-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install bundle deps
+        env:
+          RUNNER_BUNDLE_DEPS_CACHE_HIT: ${{ steps.bundle-deps-cache.outputs.cache-hit }}
         run: bash src/atlas/scripts/ci-bundle.sh deps-full
       - name: Run provider part
         run: node src/atlas/scripts/run.mjs
@@ -759,9 +787,12 @@ jobs:
       R_STORE_WRITE: d1
       CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
       CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
-      R_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
-      R_ALBUM_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
-      R_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
+      R_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id || github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_ALBUM_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id || github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
+      R_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at || github.event.inputs.dispatched_at }}
+      PREPARED_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id || github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
+      PREPARED_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at || github.event.inputs.dispatched_at }}
+      PREPARED_RUN_ATTEMPT: ${{ needs.prepare-fanout.outputs.context_attempt || github.run_attempt }}
       KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
     steps:
       - name: Source
@@ -773,24 +804,29 @@ jobs:
           sparse-checkout: /atlas/
           sparse-checkout-cone-mode: false
           persist-credentials: false
-      - name: Resolve attempt context
-        if: ${{ github.event.inputs.job != 'album-refresh' }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
-          RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
-        run: bash src/atlas/scripts/ci-resolve-context.sh
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Resolve prepared fanout context
+        if: ${{ github.event.inputs.job != 'album-refresh' }}
+        run: node src/atlas/scripts/resolve-fanout-context.mjs
       - name: Configuration
         run: bash src/atlas/scripts/ci-keys.sh
       - name: Fetch runner bundle
+        id: fetch-bundle
         env:
           RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
         run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Cache installed bundle dependencies
+        id: bundle-deps-cache
+        uses: actions/cache@v4
+        with:
+          path: .runner-bundle/node_modules
+          key: bundle-installed-${{ runner.os }}-${{ runner.arch }}-${{ steps.fetch-bundle.outputs.sha256 }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/**/package-lock.json', '.runner-bundle/**/package.json', '.runner-bundle/**/requirements.txt') }}
       - name: Install bundle deps
+        env:
+          RUNNER_BUNDLE_DEPS_CACHE_HIT: ${{ steps.bundle-deps-cache.outputs.cache-hit }}
         run: bash src/atlas/scripts/ci-bundle.sh deps-min
       - name: Close failed provider fanout
         if: ${{ (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout') && needs.provider-fanout.result != 'success' }}
