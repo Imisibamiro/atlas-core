@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   youtube-access-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
       YTDLP_VERSION: "2026.8.19"
