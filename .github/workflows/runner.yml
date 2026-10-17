@@ -623,6 +623,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           RUN_CONTEXT_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}', github.event.inputs.job, github.run_id) }}
           RUN_CONTEXT_STARTED_AT: ${{ github.event.inputs.dispatched_at }}
+          PREPARED_REFRESH_ID: ${{ github.run_attempt != '1' && github.event.inputs.job_run_id || '' }}
+          PREPARED_SNAPSHOT_AT: ${{ github.run_attempt != '1' && github.event.inputs.dispatched_at || '' }}
+          PREPARED_RUN_ATTEMPT: ${{ github.run_attempt != '1' && github.event.inputs.job_run_id != '' && '1' || '' }}
         run: bash src/atlas/scripts/ci-resolve-context.sh
       - name: Setup Node.js
         uses: actions/setup-node@v4
