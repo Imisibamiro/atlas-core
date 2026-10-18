@@ -596,6 +596,7 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      NGMC_REFRESH_SKIP_CATALOGUE_RECHECK: ${{ github.event.inputs.job == 'daily-refresh-fanout' && '1' || '' }}
       R_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
       R_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
       R_SNAPSHOT_AT: ${{ github.event.inputs.dispatched_at }}
@@ -765,8 +766,96 @@ jobs:
       - name: Run provider part
         run: node src/atlas/scripts/run.mjs
 
+  catalogue-recheck:
+    needs: prepare-fanout
+    if: ${{ github.event.inputs.job == 'daily-refresh-fanout' }}
+    runs-on: ubuntu-24.04
+    environment: refresh-catalogue-recheck
+    timeout-minutes: 30
+    continue-on-error: true
+    env:
+      RUNNER_JOB: refresh-catalogue-recheck
+      RUNNER_KEY_JOB: refresh-catalogue-recheck
+      RUNNER_PARENT_JOB: ${{ github.event.inputs.job }}
+      RUNNER_FANOUT_JOB_KIND: ${{ github.event.inputs.job }}
+      RUNNER_SOURCE: ${{ github.event.inputs.source }}
+      RUNNER_CRON: ${{ github.event.inputs.cron }}
+      RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
+      RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
+      RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      SCRAPER_DB_TARGET: cloudflare
+      R_CAPTURE_BASELINES: '1'
+      RECALC_DB_TARGET: cloudflare
+      R_STORE_READ: d1
+      R_STORE_WRITE: d1
+      CLASSIFIER_JOB_ID: ${{ github.event.inputs.classifier_job_id }}
+      CLASSIFIER_TIMEOUT_SECONDS: ${{ github.event.inputs.classifier_timeout_seconds }}
+      R_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id }}
+      R_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
+      PREPARED_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id }}
+      PREPARED_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
+      PREPARED_RUN_ATTEMPT: ${{ needs.prepare-fanout.outputs.context_attempt }}
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Resolve prepared fanout context
+        run: node src/atlas/scripts/resolve-fanout-context.mjs
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Configuration
+        run: bash src/atlas/scripts/ci-keys.sh
+      - name: Fetch runner bundle
+        id: fetch-bundle
+        env:
+          RUNNER_BUNDLE_EXPECTED_SHA256: ${{ github.event.inputs.bundle_sha256 }}
+        run: bash src/atlas/scripts/ci-bundle.sh fetch
+      - name: Cache installed bundle dependencies
+        id: bundle-deps-cache
+        uses: actions/cache@v4
+        with:
+          path: .runner-bundle/node_modules
+          key: bundle-installed-${{ runner.os }}-${{ runner.arch }}-${{ steps.fetch-bundle.outputs.sha256 }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/**/package-lock.json', '.runner-bundle/**/package.json', '.runner-bundle/**/requirements.txt') }}
+      - name: Cache bundle dependency downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/pip
+          key: fanout-deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json', '.runner-bundle/**/requirements.txt') }}
+          restore-keys: |
+            fanout-deps-${{ runner.os }}-${{ runner.arch }}-
+      - name: Prepare Playwright browser cache path
+        run: mkdir -p ~/.cache/ms-playwright
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: fanout-playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.runner-bundle/package-lock.json', '.runner-bundle/package.json') }}
+          restore-keys: |
+            fanout-playwright-${{ runner.os }}-${{ runner.arch }}-
+      - name: Install bundle deps
+        env:
+          RUNNER_BUNDLE_DEPS_CACHE_HIT: ${{ steps.bundle-deps-cache.outputs.cache-hit }}
+        run: bash src/atlas/scripts/ci-bundle.sh deps-full
+      - name: Run catalogue re-check
+        run: node src/atlas/scripts/run.mjs
+
   finalize-fanout:
-    needs: [prepare-fanout, provider-fanout]
+    needs: [prepare-fanout, provider-fanout, catalogue-recheck]
     if: ${{ always() && (github.event.inputs.job == 'daily-refresh-fanout' || github.event.inputs.job == 'full-discovery-refresh-fanout' || github.event.inputs.job == 'daily-refresh-fanout-finalize' || github.event.inputs.job == 'full-discovery-refresh-fanout-finalize' || github.event.inputs.job == 'album-refresh' || github.event.inputs.job == 'album-refresh-finalize') }}
     runs-on: ubuntu-24.04
     environment:
