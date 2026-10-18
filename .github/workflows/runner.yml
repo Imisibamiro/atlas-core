@@ -314,7 +314,7 @@ jobs:
     name: ${{ github.event.inputs.job == 'full-discovery' && format('discovery-scan ({0}, {1} artists, {2} work)', matrix.shard, matrix.artist_count, matrix.estimated_work) || 'run' }}
     runs-on: ubuntu-24.04
     environment:
-      name: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job }}
+      name: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job == 'manifest-links' && 'pre-week-open' || github.event.inputs.job }}
     timeout-minutes: ${{ github.event.inputs.job == 'full-discovery' && 360 || 180 }}
     strategy:
       fail-fast: false
@@ -322,7 +322,7 @@ jobs:
       matrix: ${{ fromJSON(github.event.inputs.job == 'full-discovery' && needs.plan-full-discovery-shards.outputs.matrix || format('{{"artist_shard":{0}}}', github.event.inputs.artist_shards || '[""]')) }}
     env:
       RUNNER_JOB: ${{ github.event.inputs.job }}
-      RUNNER_KEY_JOB: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job }}
+      RUNNER_KEY_JOB: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job == 'manifest-links' && 'pre-week-open' || github.event.inputs.job }}
       RUNNER_SOURCE: ${{ github.event.inputs.source }}
       RUNNER_CRON: ${{ github.event.inputs.cron }}
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
