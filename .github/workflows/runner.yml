@@ -310,7 +310,7 @@ jobs:
 
   run:
     needs: plan-full-discovery-shards
-    if: ${{ always() && github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' && github.event.inputs.job != 'same-song-classifier-test' && github.event.inputs.job != 'same-song-classifier-train' && (github.event.inputs.job != 'full-discovery' || needs.plan-full-discovery-shards.result == 'success') }}
+    if: ${{ always() && github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' && github.event.inputs.job != 'same-song-classifier-test' && github.event.inputs.job != 'same-song-classifier-train' && github.event.inputs.job != 'prerender' && (github.event.inputs.job != 'full-discovery' || needs.plan-full-discovery-shards.result == 'success') }}
     name: ${{ github.event.inputs.job == 'full-discovery' && format('discovery-scan ({0}, {1} artists, {2} work)', matrix.shard, matrix.artist_count, matrix.estimated_work) || 'run' }}
     runs-on: ubuntu-24.04
     environment:
@@ -526,6 +526,40 @@ jobs:
         run: bash src/atlas/scripts/ci-bundle.sh deps-min
       - name: Finalize album preview once
         run: node src/atlas/scripts/run.mjs
+
+  render:
+    if: ${{ github.event.inputs.job == 'prerender' }}
+    runs-on: ubuntu-24.04
+    environment: prerender
+    timeout-minutes: 45
+    env:
+      RUNNER_JOB: ${{ github.event.inputs.job }}
+      RUNNER_KEY_JOB: prerender
+      KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: src/.nvmrc
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+      - name: Render
+        run: bash src/atlas/prerender/run.sh
+      - name: Summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-summary
+          path: src/render-out/summary.json
+          if-no-files-found: warn
+          retention-days: 7
 
   recalculate:
     if: ${{ github.event.inputs.job == 'recalculate-live-chart' }}
