@@ -531,10 +531,11 @@ jobs:
     if: ${{ github.event.inputs.job == 'prerender' }}
     runs-on: ubuntu-24.04
     environment: prerender
-    timeout-minutes: 45
+    timeout-minutes: 120
     env:
       RUNNER_JOB: ${{ github.event.inputs.job }}
       RUNNER_KEY_JOB: prerender
+      RENDER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
     steps:
       - name: Source
@@ -550,14 +551,28 @@ jobs:
           node-version-file: src/.nvmrc
           cache: npm
           cache-dependency-path: src/package-lock.json
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: src/render-cache
+          key: render-state-${{ github.run_id }}
+          restore-keys: render-state-
       - name: Render
         run: bash src/atlas/prerender/run.sh
+      - name: Save state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: src/render-cache
+          key: render-state-${{ github.run_id }}
       - name: Summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: render-summary
-          path: src/render-out/summary.json
+          path: |
+            src/render-out/summary.json
+            src/render-out/full.json
           if-no-files-found: warn
           retention-days: 7
 
