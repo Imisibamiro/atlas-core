@@ -116,7 +116,7 @@ jobs:
         shell: bash
         run: |
           set -u
-          nohup npx wrangler dev --local --port 8787 > "$RUNNER_TEMP/prerender-wrangler.log" 2>&1 < /dev/null &
+          nohup npx wrangler dev --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session=false > "$RUNNER_TEMP/prerender-wrangler.log" 2>&1 < /dev/null &
           echo "$!" > "$RUNNER_TEMP/prerender-wrangler.pid"
           for attempt in $(seq 1 60); do
             if curl -sS --max-time 1 http://127.0.0.1:8787/ -o /dev/null; then
@@ -126,6 +126,8 @@ jobs:
             sleep 1
           done
           echo 'server_ready=false' >> "$GITHUB_OUTPUT"
+          echo '--- wrangler dev log (tail) ---'
+          tail -n 60 "$RUNNER_TEMP/prerender-wrangler.log" || true
           printf '\nEmulator did not answer within 120 seconds.\n' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Render and compare 20 public pages
