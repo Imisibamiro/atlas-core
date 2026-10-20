@@ -1,0 +1,161 @@
+name: "Prerender spike"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "NGMC branch or commit to build"
+        required: false
+        default: "spike/github-page-builder"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prerender-spike
+  cancel-in-progress: false
+
+jobs:
+  prerender:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout NGMC source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ref: ${{ inputs.ref }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: src/.nvmrc
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src
+        run: npm ci
+
+      - name: Fetch and seed public directory data locally
+        id: directory
+        working-directory: src
+        env:
+          CLOUDFLARE_CHART_API_URL: https://ngmc-chart-api.imisibamiro.workers.dev
+        shell: bash
+        run: |
+          set -u
+          data_file="$RUNNER_TEMP/directory-data.json"
+          source="repo-fallback"
+          staged_file=""
+          if curl -fLsS --max-time 90 "${CLOUDFLARE_CHART_API_URL%/}/v1/assets/public/directory/directory-data.json" -o "$data_file"; then
+            staged_file="$data_file"
+            mkdir -p tmp/cloudflare-public-build
+            cp atlas/prerender/wrangler.prerender.jsonc tmp/cloudflare-public-build/wrangler.jsonc
+            if (cd tmp/cloudflare-public-build && npx wrangler r2 object put --local ngmc-public-assets/public/directory/directory-data.json --file "$data_file"); then
+              source="public-r2-snapshot"
+            else
+              source="public-r2-snapshot-file-fallback"
+            fi
+          else
+            rm -f "$data_file"
+          fi
+          echo "source=$source" >> "$GITHUB_OUTPUT"
+          echo "file=$staged_file" >> "$GITHUB_OUTPUT"
+
+      - name: Build public app and record resource use
+        id: build
+        working-directory: src
+        env:
+          PRERENDER_DIRECTORY_DATA_FILE: ${{ steps.directory.outputs.file }}
+          # Non-secret public build settings, same values as the production build.
+          CLOUDFLARE_CHART_API_URL: https://ngmc-chart-api.imisibamiro.workers.dev
+          NEXT_PUBLIC_ADMIN_HOSTS: weservejollof.com,www.weservejollof.com,ngmc-admin.vercel.app
+          NEXT_PUBLIC_ANALYTICS_ALLOWED_HOSTS: ngmcharts.com,www.ngmcharts.com
+          NEXT_PUBLIC_APPLE_SIGNIN_ENABLED: "1"
+          NEXT_PUBLIC_GA_MEASUREMENT_ID: G-7XBQNZKYRZ
+          NGMC_CANONICAL_PUBLIC_HOST: www.ngmcharts.com
+          NGMC_CANONICAL_REDIRECT_HOSTS: ngmcharts.com,ngmc.vercel.app
+        shell: bash
+        run: |
+          set -u
+          mkdir -p prerender-output/normalized
+          printf '# Prerender spike report\n\nBuild did not finish; see build status and timings.\n' > prerender-output/report.md
+          set +e
+          /usr/bin/time -v -o "$RUNNER_TEMP/prerender-build.time" node atlas/prerender/build-public-ci.mjs
+          build_status=$?
+          set -e
+          node - "$RUNNER_TEMP/prerender-build.time" "$build_status" "$GITHUB_OUTPUT" <<'NODE'
+          const fs = require('node:fs');
+          const [timeFile, rawStatus, outputFile] = process.argv.slice(2);
+          const report = fs.readFileSync(timeFile, 'utf8');
+          const durationLine = report.match(/Elapsed \(wall clock\) time \(h:mm:ss or m:ss\):\s*([^\n]+)/)?.[1]?.trim() || '';
+          const parts = durationLine.split(':').map(Number);
+          const durationSeconds = parts.reduce((sum, part) => sum * 60 + part, 0) || null;
+          const peakRssKb = Number(report.match(/Maximum resident set size \(kbytes\):\s*(\d+)/)?.[1] || 0) || null;
+          const status = Number(rawStatus);
+          fs.writeFileSync('prerender-output/timings.json', JSON.stringify({ build: { status, durationSeconds, peakRssKb } }, null, 2) + '\n');
+          fs.appendFileSync(outputFile, `build_ok=${status === 0}\n`);
+          if (status !== 0) {
+            fs.writeFileSync('prerender-output/report.md', `# Prerender spike report\n\nBuild failed (exit ${status}); no emulator render was attempted. See \`timings.json\`.\n`);
+          }
+          NODE
+          if [ -n "$PRERENDER_DIRECTORY_DATA_FILE" ]; then
+            rm -f "$PRERENDER_DIRECTORY_DATA_FILE"
+          fi
+          rm -f "$RUNNER_TEMP/prerender-build.time"
+
+      - name: Start local Wrangler emulator
+        id: emulator
+        if: steps.build.outputs.build_ok == 'true'
+        working-directory: src/tmp/cloudflare-public-build
+        shell: bash
+        run: |
+          set -u
+          nohup npx wrangler dev --local --port 8787 > "$RUNNER_TEMP/prerender-wrangler.log" 2>&1 < /dev/null &
+          echo "$!" > "$RUNNER_TEMP/prerender-wrangler.pid"
+          for attempt in $(seq 1 60); do
+            if curl -sS --max-time 1 http://127.0.0.1:8787/ -o /dev/null; then
+              echo 'server_ready=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'server_ready=false' >> "$GITHUB_OUTPUT"
+          printf '\nEmulator did not answer within 120 seconds.\n' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Render and compare 20 public pages
+        if: steps.emulator.outputs.server_ready == 'true'
+        working-directory: src
+        env:
+          DIRECTORY_DATA_SOURCE: ${{ steps.directory.outputs.source }}
+        run: node atlas/prerender/render-sample.mjs
+
+      - name: Record emulator startup failure
+        if: steps.build.outputs.build_ok == 'true' && steps.emulator.outputs.server_ready != 'true'
+        working-directory: src
+        run: printf '# Prerender spike report\n\nBuild passed, but the local emulator did not answer within 120 seconds; no sample pages were rendered.\n' > prerender-output/report.md
+
+      - name: Stop local Wrangler emulator
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/prerender-wrangler.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/prerender-wrangler.pid")" 2>/dev/null || true
+          fi
+
+      - name: Upload prerender report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prerender-spike-report
+          path: |
+            src/prerender-output/report.md
+            src/prerender-output/timings.json
+            src/prerender-output/normalized/*.html
+          if-no-files-found: warn
+          retention-days: 7
