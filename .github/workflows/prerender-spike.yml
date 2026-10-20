@@ -109,6 +109,8 @@ jobs:
           fi
           rm -f "$RUNNER_TEMP/prerender-build.time"
 
+      # The repo's wrangler (4.131.2) ships a runtime that only supports compatibility dates up to
+      # 2026-09-18; production uses 2026-10-03, so the emulator uses a newer pinned wrangler.
       - name: Start local Wrangler emulator
         id: emulator
         if: steps.build.outputs.build_ok == 'true'
@@ -116,7 +118,7 @@ jobs:
         shell: bash
         run: |
           set -u
-          nohup npx wrangler dev --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session=false > "$RUNNER_TEMP/prerender-wrangler.log" 2>&1 < /dev/null &
+          nohup npx --yes wrangler@4.151.3 dev --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session=false > "$RUNNER_TEMP/prerender-wrangler.log" 2>&1 < /dev/null &
           echo "$!" > "$RUNNER_TEMP/prerender-wrangler.pid"
           for attempt in $(seq 1 60); do
             if curl -sS --max-time 1 http://127.0.0.1:8787/ -o /dev/null; then
