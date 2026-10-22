@@ -809,6 +809,7 @@ jobs:
             fanout-playwright-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install bundle deps
+        timeout-minutes: 20
         env:
           RUNNER_BUNDLE_DEPS_CACHE_HIT: ${{ steps.bundle-deps-cache.outputs.cache-hit }}
         run: bash src/atlas/scripts/ci-bundle.sh deps-full
