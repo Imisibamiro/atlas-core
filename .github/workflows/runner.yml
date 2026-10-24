@@ -117,6 +117,11 @@ name: "Run"
         required: false
         default: ""
         type: string
+      providers:
+        description: "Optional comma-separated provider list"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   actions: read
@@ -330,6 +335,7 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       DISCOVERY_DEBUG_VIDEO_ID: ${{ github.event.inputs.debug_video_id }}
       R_RETRY_PART: ${{ github.event.inputs.retry_failed_part }}
+      R_PROVIDERS: ${{ github.event.inputs.providers }}
       ARTIST_DISCOVERY_CONCURRENCY: "2"
       RUNNER_TIMEOUT_MS: ${{ github.event.inputs.job == 'full-discovery' && '21000000' || '10800000' }}
       R_ARTISTS: ${{ matrix.artist_ids && ' ' || matrix.artist_shard || github.event.inputs.artists }}
@@ -645,6 +651,7 @@ jobs:
       RUNNER_DISPATCHED_AT: ${{ github.event.inputs.dispatched_at }}
       RUNNER_DRY_RUN: ${{ github.event.inputs.dry_run }}
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+      R_PROVIDERS: ${{ github.event.inputs.providers }}
       NGMC_REFRESH_SKIP_CATALOGUE_RECHECK: ${{ github.event.inputs.job == 'daily-refresh-fanout' && '1' || '' }}
       R_ALBUM_IDS: ${{ github.event.inputs.target_album_ids }}
       R_REFRESH_ID: ${{ github.event.inputs.job_run_id || format('{0}:{1}:{2}', github.event.inputs.job, github.run_id, github.run_attempt) }}
