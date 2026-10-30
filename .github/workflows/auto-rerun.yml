@@ -28,7 +28,7 @@ jobs:
       - name: Only daily refresh fanout runs
         id: fanout
         run: |
-          jobs="$(gh api repos/$REPO/actions/runs/$RUN_ID/jobs --paginate --jq '.jobs[].name')"
+          jobs="$(gh api repos/$REPO/actions/runs/$RUN_ID/jobs --paginate --jq '.jobs[] | select(.conclusion != "skipped") | .name')"
           if ! printf '%s\n' "$jobs" | grep -q '^finalize-fanout'; then
             echo "Not a fanout run; nothing to do"
             echo "skip=true" >> "$GITHUB_OUTPUT"
