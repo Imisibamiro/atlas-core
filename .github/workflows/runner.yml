@@ -316,15 +316,16 @@ jobs:
   run:
     needs: plan-full-discovery-shards
     if: ${{ always() && github.event.inputs.job != 'daily-refresh-fanout' && github.event.inputs.job != 'full-discovery-refresh-fanout' && github.event.inputs.job != 'daily-refresh-fanout-finalize' && github.event.inputs.job != 'full-discovery-refresh-fanout-finalize' && github.event.inputs.job != 'album-refresh' && github.event.inputs.job != 'album-refresh-finalize' && github.event.inputs.job != 'recalculate-live-chart' && github.event.inputs.job != 'same-song-classifier-test' && github.event.inputs.job != 'same-song-classifier-train' && github.event.inputs.job != 'prerender' && (github.event.inputs.job != 'full-discovery' || needs.plan-full-discovery-shards.result == 'success') }}
-    name: ${{ github.event.inputs.job == 'full-discovery' && format('discovery-scan ({0}, {1} artists, {2} work)', matrix.shard, matrix.artist_count, matrix.estimated_work) || 'run' }}
+    name: ${{ github.event.inputs.job == 'full-discovery' && format('discovery-scan ({0}, {1} artists, {2} work)', matrix.shard, matrix.artist_count, matrix.estimated_work) || github.event.inputs.job == 'catalogue-deep-fill' && format('deep-fill ({0})', matrix.providers) || 'run' }}
     runs-on: ubuntu-24.04
     environment:
       name: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job == 'manifest-links' && 'pre-week-open' || github.event.inputs.job }}
     timeout-minutes: ${{ github.event.inputs.job == 'full-discovery' && 360 || 180 }}
     strategy:
       fail-fast: false
-      max-parallel: ${{ github.event.inputs.job == 'full-discovery' && 8 || 2 }}
-      matrix: ${{ fromJSON(github.event.inputs.job == 'full-discovery' && needs.plan-full-discovery-shards.outputs.matrix || format('{{"artist_shard":{0}}}', github.event.inputs.artist_shards || '[""]')) }}
+      max-parallel: ${{ github.event.inputs.job == 'full-discovery' && 8 || github.event.inputs.job == 'catalogue-deep-fill' && 3 || 2 }}
+      # Catalogue deep fill: one shard per platform, side by side (owner 7 Nov 2026).
+      matrix: ${{ fromJSON(github.event.inputs.job == 'full-discovery' && needs.plan-full-discovery-shards.outputs.matrix || github.event.inputs.job == 'catalogue-deep-fill' && '{"include":[{"providers":"spotify","artist_shard":""},{"providers":"audiomack","artist_shard":""},{"providers":"youtube","artist_shard":""}]}' || format('{{"artist_shard":{0}}}', github.event.inputs.artist_shards || '[""]')) }}
     env:
       RUNNER_JOB: ${{ github.event.inputs.job }}
       RUNNER_KEY_JOB: ${{ (github.event.inputs.job == 'album-catalogue-scan' || github.event.inputs.job == 'album-collect-finalize') && 'album-collect' || github.event.inputs.job == 'manifest-links' && 'pre-week-open' || github.event.inputs.job }}
@@ -335,7 +336,7 @@ jobs:
       RUNNER_MAX_ITEMS: ${{ github.event.inputs.max_items }}
       DISCOVERY_DEBUG_VIDEO_ID: ${{ github.event.inputs.debug_video_id }}
       R_RETRY_PART: ${{ github.event.inputs.retry_failed_part }}
-      R_PROVIDERS: ${{ github.event.inputs.providers }}
+      R_PROVIDERS: ${{ matrix.providers || github.event.inputs.providers }}
       ARTIST_DISCOVERY_CONCURRENCY: "2"
       RUNNER_TIMEOUT_MS: ${{ github.event.inputs.job == 'full-discovery' && '21000000' || '10800000' }}
       R_ARTISTS: ${{ matrix.artist_ids && ' ' || matrix.artist_shard || github.event.inputs.artists }}
