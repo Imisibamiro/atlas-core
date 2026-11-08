@@ -829,7 +829,7 @@ jobs:
     if: ${{ github.event.inputs.job == 'daily-refresh-fanout' }}
     runs-on: ubuntu-24.04
     environment: refresh-catalogue-recheck
-    timeout-minutes: 30
+    timeout-minutes: 45
     continue-on-error: true
     env:
       RUNNER_JOB: refresh-catalogue-recheck
