@@ -1,0 +1,105 @@
+name: verify
+
+"on":
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Full commit id to check (blank = open requests and main)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify
+  cancel-in-progress: false
+
+jobs:
+  pick:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      targets: ${{ steps.pick.outputs.targets }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+
+      - name: Pick commits
+        id: pick
+        env:
+          STATUS_KEY: ${{ secrets.STATUS_KEY }}
+          SRC_REPO: ${{ secrets.SRC_REPO }}
+          INPUT_SHA: ${{ inputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node src/atlas/scripts/ci-verify-pick.mjs
+
+  verify:
+    needs: pick
+    if: needs.pick.outputs.targets != '' && needs.pick.outputs.targets != '[]'
+    name: verify ${{ matrix.target.pr || 'main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: ${{ fromJSON(needs.pick.outputs.targets) }}
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SRC_REPO }}
+          ssh-key: ${{ secrets.SRC_KEY }}
+          path: src
+          sparse-checkout: /atlas/
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+
+      - name: Fetch commit
+        id: fetch
+        env:
+          SRC_KEY: ${{ secrets.SRC_KEY }}
+          SRC_REPO: ${{ secrets.SRC_REPO }}
+          TARGET_SHA: ${{ matrix.target.sha }}
+          TARGET_PR: ${{ matrix.target.pr }}
+        run: bash src/atlas/scripts/ci-verify-fetch.sh "$TARGET_SHA" "$RUNNER_TEMP/w" "$TARGET_PR"
+
+      - name: Dependency cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: verify-npm-${{ steps.fetch.outputs.lock }}
+          restore-keys: verify-npm-
+
+      - name: Checks and tests (counts only)
+        run: bash src/atlas/scripts/ci-verify.sh "$RUNNER_TEMP/w" "$RUNNER_TEMP/out"
+
+      - name: Post result
+        if: always()
+        env:
+          STATUS_KEY: ${{ secrets.STATUS_KEY }}
+          SRC_REPO: ${{ secrets.SRC_REPO }}
+          TARGET_SHA: ${{ matrix.target.sha }}
+          TARGET_PR: ${{ matrix.target.pr }}
+          SUMMARY_FILE: ${{ runner.temp }}/out/summary.json
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node src/atlas/scripts/ci-verify-post.mjs
