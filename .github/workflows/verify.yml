@@ -1,12 +1,15 @@
 name: verify
 
 "on":
-  schedule:
-    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       sha:
         description: "Full commit id to check (blank = open requests and main)"
+        required: false
+        default: ""
+        type: string
+      pr:
+        description: "Request number the commit belongs to (optional)"
         required: false
         default: ""
         type: string
@@ -15,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: verify
+  group: verify-${{ inputs.sha || 'sweep' }}
   cancel-in-progress: false
 
 jobs:
@@ -45,6 +48,7 @@ jobs:
           STATUS_KEY: ${{ secrets.STATUS_KEY }}
           SRC_REPO: ${{ secrets.SRC_REPO }}
           INPUT_SHA: ${{ inputs.sha }}
+          INPUT_PR: ${{ inputs.pr }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node src/atlas/scripts/ci-verify-pick.mjs
 
