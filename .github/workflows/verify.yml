@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22.17.0"
+          node-version: "22.22.2"
 
       - name: Pick commits
         id: pick
@@ -72,7 +72,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22.17.0"
+          node-version: "22.22.2"
 
       - name: Fetch commit
         id: fetch
