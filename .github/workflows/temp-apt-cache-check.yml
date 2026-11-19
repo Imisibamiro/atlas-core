@@ -1,0 +1,54 @@
+name: "Temp apt cache check"
+on:
+  push:
+    branches: [cache-browser-system-packages]
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include: [{part: p3, runner_job: "refresh-part:p3"}, {part: p1, runner_job: "refresh-part:p1"}]
+    steps:
+      # Browser parts install ~180 system packages (126 MB) for WebKit through apt.
+      # Keep the downloaded .deb files in the Actions cache so a slow Ubuntu mirror
+      # only matters for packages that changed since the last run.
+      - name: Prepare browser system package cache
+        id: browser-apt-prep
+        if: ${{ matrix.part == 'p3' || contains(matrix.runner_job, 'spotify') }}
+        run: |
+          set -euo pipefail
+          echo "week=$(date -u +%G-%V)" >> "${GITHUB_OUTPUT}"
+          mkdir -p "${HOME}/apt-archives/partial"
+          printf 'Dir::Cache::Archives "%s/apt-archives";\nAPT::Keep-Downloaded-Packages "true";\n' "${HOME}" \
+            | sudo tee /etc/apt/apt.conf.d/90runner-archive-cache >/dev/null
+      - name: Restore browser system packages
+        id: browser-apt-cache
+        if: ${{ steps.browser-apt-prep.outcome == 'success' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/apt-archives
+          key: browser-apt-${{ runner.os }}-${{ runner.arch }}-${{ steps.browser-apt-prep.outputs.week }}
+          restore-keys: |
+            browser-apt-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install bundle deps
+        timeout-minutes: 20
+        run: |
+          start=$(date +%s)
+          npx -y playwright@1.49.1 install-deps webkit chromium 2>&1 | grep -E 'Need to get|Fetched|newly installed' || true
+          echo "install seconds: $(( $(date +%s) - start ))"
+      # Saved even when the install times out, so the next attempt starts with what already arrived.
+      - name: Make browser system packages readable
+        if: ${{ always() && steps.browser-apt-prep.outcome == 'success' && steps.browser-apt-cache.outputs.cache-hit != 'true' }}
+        run: |
+          sudo rm -rf "${HOME}/apt-archives/partial" "${HOME}/apt-archives/lock"
+          sudo chown -R "$(id -u):$(id -g)" "${HOME}/apt-archives"
+          mkdir -p "${HOME}/apt-archives/partial"
+          ls "${HOME}/apt-archives" | grep -c '\.deb$' || true
+      - name: Save browser system packages
+        if: ${{ always() && steps.browser-apt-prep.outcome == 'success' && steps.browser-apt-cache.outputs.cache-hit != 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ~/apt-archives
+          key: browser-apt-${{ runner.os }}-${{ runner.arch }}-${{ steps.browser-apt-prep.outputs.week }}
