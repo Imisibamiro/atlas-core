@@ -816,11 +816,60 @@ jobs:
           restore-keys: |
             fanout-playwright-${{ runner.os }}-${{ runner.arch }}-
 
+      # Browser parts install ~180 system packages (126 MB) for WebKit through apt.
+      # Keep the downloaded .deb files in the Actions cache so a slow Ubuntu mirror
+      # only matters for packages that changed since the last saved copy.
+      - name: Prepare browser system package cache
+        id: browser-apt-prep
+        if: ${{ matrix.part == 'p3' || contains(matrix.runner_job, 'spotify') }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/apt-archives/partial"
+          printf 'Dir::Cache::Archives "%s/apt-archives";\nAPT::Keep-Downloaded-Packages "true";\n' "${HOME}" \
+            | sudo tee /etc/apt/apt.conf.d/90runner-archive-cache >/dev/null
+      - name: Restore browser system packages
+        if: ${{ steps.browser-apt-prep.outcome == 'success' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/apt-archives
+          key: browser-apt-${{ runner.os }}-${{ runner.arch }}
+          restore-keys: |
+            browser-apt-${{ runner.os }}-${{ runner.arch }}-
+      - name: Mark restored browser system packages
+        if: ${{ steps.browser-apt-prep.outcome == 'success' }}
+        run: touch "${RUNNER_TEMP}/apt-archives-restored"
+
       - name: Install bundle deps
+        id: install-bundle-deps
         timeout-minutes: 20
         env:
           RUNNER_BUNDLE_DEPS_CACHE_HIT: ${{ steps.bundle-deps-cache.outputs.cache-hit }}
         run: bash src/atlas/scripts/ci-bundle.sh deps-full
+      # Runs even when the install times out, so the next attempt starts with what already arrived.
+      - name: Check browser system packages
+        id: browser-apt-check
+        if: ${{ always() && steps.browser-apt-prep.outcome == 'success' }}
+        run: |
+          set -uo pipefail
+          dir="${HOME}/apt-archives"
+          if [ "${{ steps.install-bundle-deps.outcome }}" = "success" ]; then
+            sudo apt-get autoclean -qq || true   # drop .deb versions the mirror no longer serves
+          fi
+          # apt stamps downloads with the server's date, so compare change time (ctime), before chown resets it.
+          total=$(sudo find "${dir}" -maxdepth 1 -name '*.deb' | wc -l)
+          fresh=$(sudo find "${dir}" -maxdepth 1 -name '*.deb' -cnewer "${RUNNER_TEMP}/apt-archives-restored" | wc -l)
+          sudo rm -rf "${dir}/partial" "${dir}/lock"
+          sudo chown -R "$(id -u):$(id -g)" "${dir}"
+          mkdir -p "${dir}/partial"
+          echo "Browser system packages: ${total} cached, ${fresh} downloaded this run"
+          if [ "${fresh}" -gt 0 ]; then echo "save=true" >> "${GITHUB_OUTPUT}"; fi
+      - name: Save browser system packages
+        if: ${{ always() && steps.browser-apt-check.outputs.save == 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ~/apt-archives
+          key: browser-apt-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Run provider part
         run: node src/atlas/scripts/run.mjs
 
