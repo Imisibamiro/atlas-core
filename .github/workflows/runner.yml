@@ -369,6 +369,7 @@ jobs:
         with:
           node-version: "22"
       - name: Setup Python
+        id: setup_python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -401,9 +402,10 @@ jobs:
             ~/.cache/cls
             ~/.cache/huggingface
             ~/.cache/torch
-          key: classifier-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.runner-bundle/scripts/classifier/requirements-classifier.txt', '.runner-bundle/models/*.joblib') }}
+          # Exact Python version in the key: a runner image Python bump must not restore a venv whose python link is gone.
+          key: classifier-${{ runner.os }}-${{ runner.arch }}-py${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('.runner-bundle/scripts/classifier/requirements-classifier.txt', '.runner-bundle/models/*.joblib') }}
           restore-keys: |
-            classifier-${{ runner.os }}-${{ runner.arch }}-py312-
+            classifier-${{ runner.os }}-${{ runner.arch }}-py${{ steps.setup_python.outputs.python-version }}-
 
       - name: Cache audio analysers
         if: ${{ github.event.inputs.job == 'song-resolver-check' }}
