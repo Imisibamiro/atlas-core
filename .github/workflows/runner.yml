@@ -762,6 +762,7 @@ jobs:
       PREPARED_REFRESH_ID: ${{ needs.prepare-fanout.outputs.refresh_id }}
       PREPARED_SNAPSHOT_AT: ${{ needs.prepare-fanout.outputs.snapshot_at }}
       PREPARED_RUN_ATTEMPT: ${{ needs.prepare-fanout.outputs.context_attempt }}
+      SPOTIFY_STALE_DEFER_WRITES: "1"
       KEY_BROKER_URL: ${{ secrets.BROKER_URL }}
     steps:
       - name: Source
